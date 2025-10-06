@@ -1,54 +1,59 @@
-# Checkpoint / Restart tests on Exascale computing systems
+# Checkpoint / Restart tests on exascale computing systems
 
-For questions, please contact: Huihuo Zheng <huihuo.zheng@anl.gov>
+This repository hosts a synthetic workload, monitoring utilities, and
+PBS batch scripts used to explore fault tolerance strategies on large
+Aurora-like systems.  The tools model common failure modes (hangs,
+mid-run exits, and successful completions) and demonstrate how to
+restart automatically when issues occur.
 
-We have seen that exascale computing systems suffer a lot of unstability which leads to termination of jobs before finishing. Therefore, checkpoint / restart become important to run large scale simulations on ``unstable" system. 
+- **Synthetic workload** – [`test_pyjob.py`](./test_pyjob.py) simulates a
+  long-running MPI job with configurable iteration time, failure, and
+  hang behavior.
+- **Monitoring & control** – [`check_hang.py`](./check_hang.py) and
+  helper shell scripts watch for hung jobs, select healthy nodes, and
+  flush processes prior to retries.
+- **Batch orchestration** – [`qsub_multi_mpiexec.sc`](./qsub_multi_mpiexec.sc)
+  and [`qsub_multi_qsub.sc`](./qsub_multi_qsub.sc) illustrate retry and
+  self-resubmission workflows on PBS clusters.
 
-In this github repo, we provide simple program to simulate all kinds of job running issues such as (1) hang; (2) fail in the middle of the run; (3) success. We provide example submission script that can deal with various kind of situations. 
+For a step-by-step walkthrough covering local simulations, monitoring,
+node management, and batch scheduling integration, see the
+[Repository Usage Guide](./docs/usage_guide.md).  Sequence diagrams and
+flow descriptions for the shell helpers are available in
+[`docs/shell_scripts.md`](./docs/shell_scripts.md).
 
-## Simulation of job execution: hang, fail, success
-- test_pyjob.py 
-  A simple simulation program, which can control
-  ```bash
-  --hang N: to hang for N seconds
-  --fail N: to fail the job after N seconds
-  --compute T: compute time per iteration
-  --niters NITERS: total number of iterations
-  --checkpoint CHECKPOINT: path for checkpoint
-  --checkpoint_time T: time for writing one checkpoint
-  ```
-## Useful scripts to compose the submission scripts that are able to handle various job execution statuses.
+## Quick start
 
-Detailed flow descriptions and sequence diagrams for the shell utilities and submission scripts are
-available in [docs/shell_scripts.md](./docs/shell_scripts.md).
+1. Clone the repository and (optionally) activate a Python virtual
+   environment.
+2. Make the Python helpers executable and add the repository to your
+   `PATH` if you plan to call them from other directories.
+3. Launch a local simulation to observe the logging and checkpointing
+   behavior:
 
-- [get_healthy_nodes.sh](./get_healthy_nodes.sh) ```NODEFILE NUM_NODES_TO_SELECT NEW_NODEFILE```
-  
-  This script is to select a subset of healthy nodes from the entire allocation
+   ```bash
+   python test_pyjob.py --compute 1 --niters 5 --output demo.log
+   ```
 
-- [check_hang.py](./check_hang.py) ```--timeout TIMEOUT --check CHECKING_PERIOD --command COMMAND --output F1:F2:F3```
+4. Combine the workload with `check_hang.py` and the PBS scripts to test
+   retry strategies inside an allocation.
 
-  This is to constantly checking whether the job hangs or not by checking whether output files are updated or not. If it is not updated for TIMEOUT seconds. It will kill the job
+## Repository layout
 
-- PBS_NODEFILE=NODEFILE [flush.sh](./flush.sh)
+- [`docs/`](./docs) – High-level usage guide and shell script
+  documentation.
+- [`examples/`](./examples) – Sample configurations demonstrating
+  success, hang, fail, and resubmission scenarios.
+- [`flush.sh`](./flush.sh) – Cleans residual processes from allocated
+  nodes (except the head node).
+- [`get_healthy_nodes.sh`](./get_healthy_nodes.sh) – Selects a subset of
+  healthy nodes from an allocation.
+- [`local_rank.sh`](./local_rank.sh) – Prepares rank metadata for MPI
+  launches.
+- [`optimal_checkpointing.py`](./optimal_checkpointing.py) – Estimates
+  checkpoint intervals based on system characteristics.
 
-  This is to clean up the nodes (except the headnode, the first one on the list)
+## Support
 
-
-## Example submission scripts
-- [qsub_multi_mpiexec.sc](./qsub_multi_mpiexec.sc)
-  submission script doing continual trials of mpiexec until success or timeout
-
-- [qsub_multi_qsub.sc](./qsub_multi_qsub.sc)
-  resubmit the job once it fails
-  
-## Various simulation examples
-- [fail/](./fail): job failed after 100 seconds, restart
-- [hang/](./hang): job hang, kill and restart
-- [success/](./success): job run seccessfully
-- [resub/](./resub): job fails after 100 seconds, and restart
-
-## Checkpoint interval optimization utility
-- [optimal_checkpointing.py](./optimal_checkpointing.py)
-  Determine the optimal time interval of computation between checkpoints
-  for a job of determined node size and checkpointed memory per node
+For questions, please contact Huihuo Zheng
+(`<huihuo.zheng@anl.gov>`).
