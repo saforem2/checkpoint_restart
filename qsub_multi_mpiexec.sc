@@ -36,7 +36,7 @@ do
     EXIT_CODE=$?
     # Check the job status
     if [ $EXIT_CODE -ne 0 ]; then
-	    echo "Job exited with $EXIT_CODE error code, will rerun"	
+	echo "Job exited with $EXIT_CODE error code, will rerun"	
     else
         echo "Job run successfully"
         break

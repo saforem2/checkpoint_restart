@@ -4,6 +4,7 @@
 #PBS -N test_success
 #PBS -l select=4
 #PBS -A datascience
+#PBS -l filesystems=home:flare
 
 MAX_TRIALS=10
 source /flare/Aurora_deployment/AuroraGPT/soft/checkpoint_restart/conda.sh
