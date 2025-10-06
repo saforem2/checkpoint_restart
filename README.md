@@ -25,7 +25,7 @@ In this github repo, we provide simple program to simulate all kinds of job runn
 
 - [check_hang.py](./check_hang.py) ```--timeout TIMEOUT --check CHECKING_PERIOD --command COMMAND --output F1:F2:F3```
 
-  This is to constantly checking whether the job hangs or not by checking whether output files are updated or not. If it is not updated for TIMEOUT seconds. It will kill the job
+  This is to constantly checking whether the job hangs or not by checking whether output files are updated or not. If it is not updated for TIMEOUT seconds. It will kill the job. 
 
 - PBS_NODEFILE=NODEFILE [flush.sh](./flush.sh)
 
@@ -36,9 +36,6 @@ In this github repo, we provide simple program to simulate all kinds of job runn
 - [qsub_multi_mpiexec.sc](./qsub_multi_mpiexec.sc)
   submission script doing continual trials of mpiexec until success or timeout
 
-- [qsub_multi_qsub.sc](./qsub_multi_qsub.sc)
-  resubmit the job once it fails
-  
 ## Various simulation examples
 - [fail/](./fail): job failed after 100 seconds, restart
 - [hang/](./hang): job hang, kill and restart
