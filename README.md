@@ -17,7 +17,10 @@ In this github repo, we provide simple program to simulate all kinds of job runn
   --checkpoint CHECKPOINT: path for checkpoint
   --checkpoint_time T: time for writing one checkpoint
   ```
-## Useful scripts to compose the submission scripts that are able to handle various job execution statuses. 
+## Useful scripts to compose the submission scripts that are able to handle various job execution statuses.
+
+Detailed flow descriptions and sequence diagrams for the shell utilities and submission scripts are
+available in [docs/shell_scripts.md](./docs/shell_scripts.md).
 
 - [get_healthy_nodes.sh](./get_healthy_nodes.sh) ```NODEFILE NUM_NODES_TO_SELECT NEW_NODEFILE```
   
