@@ -3,20 +3,20 @@
 check_nan.py — Monitor text output files for NaN/Inf and terminate a job if found.
 
 Typical usage examples:
-  # Scan *.out files every 15s; if NaN found, scancel the current PBS job
-  python check_nan.py --outputs "logs/*.out" --check 15 --pbs
+  # Scan multiple outputs (colon- or comma-separated), every 15s; on detection run a PBS kill command
+  python check_nan.py --outputs "logs/job.out:logs/job.err,output.log" --check 15 \
+      --kill-command "qdel $PBS_JOBID"
 
-  # Scan recursively; send SIGTERM to a PID on detection (then SIGKILL after grace)
+  # Scan recursively via glob; send SIGTERM to a PID on detection (then SIGKILL after grace)
   python check_nan.py --outputs "runs/**/stdout.txt" --recursive \
       --pid 123456 --signal TERM --grace 20
 
-  # Provide an explicit kill command (e.g., for PBS)
-  python check_nan.py --outputs "*.out" --kill-command "qdel $PBS_JOBID"
-
 Notes:
+- You can pass **colon or comma separated** file specs to --outputs. Each spec may be
+  a literal file path or a glob pattern (supports ** when --recursive is used).
 - This script treats any case-insensitive occurrence of the tokens `nan` or `inf`
-  as problematic (configurable via flags). It reads files incrementally to avoid
-  re-scanning from the beginning on each poll.
+  as problematic (configurable via --include-inf). It reads files incrementally to
+  avoid re-scanning from the beginning on each poll.
 """
 import argparse
 import glob
@@ -33,7 +33,131 @@ from typing import Dict, Tuple, List
 NAN_RE = re.compile(r"(?<![A-Za-z0-9_])nan(?![A-Za-z0-9_])", re.IGNORECASE)
 INF_RE = re.compile(r"(?<![A-Za-z0-9_])inf(?![A-Za-z0-9_])", re.IGNORECASE)
 
-# --- Core logic --------------------------------------------------------------
+# --- Helpers ----------------------------------------------------------------
+
+def now() -> str:
+    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+
+def vprint(verbose: bool, *msg):
+    if verbose:
+        print(f"[{now()}]", *msg, flush=True)
+
+
+def split_outputs(outputs: str) -> List[str]:
+    """Split --outputs string by ':' and ',' into a list of specs, stripping blanks."""
+    if not outputs:
+        return []
+    specs: List[str] = []
+    for part in outputs.replace(",", ":").split(":"):
+        part = part.strip()
+        if part:
+            specs.append(part)
+    return specs
+
+
+def is_glob(spec: str) -> bool:
+    return any(ch in spec for ch in ["*", "?", "["])
+
+
+def list_files(specs: List[str], recursive: bool) -> Dict[str, int]:
+    """Resolve a list of file specs (globs or literal paths) to existing files -> size."""
+    files: Dict[str, int] = {}
+    for spec in specs:
+        matched: List[str]
+        if is_glob(spec):
+            matched = glob.glob(spec, recursive=recursive)
+        else:
+            matched = [spec]
+        for f in matched:
+            try:
+                if os.path.isfile(f):
+                    files[f] = os.path.getsize(f)
+            except FileNotFoundError:
+                # File may appear later; ignore for now
+                pass
+            except OSError:
+                # Permissions or transient FS error; skip this round
+                pass
+    return files
+
+
+def scan_new_bytes(path: str, start: int) -> Tuple[int, str]:
+    """Read text from a file starting at offset `start` and return (new_end, text)."""
+    try:
+        size = os.path.getsize(path)
+        if start >= size:
+            return size, ""
+        with open(path, "r", errors="replace") as fh:
+            fh.seek(start)
+            data = fh.read()
+        return size, data
+    except (FileNotFoundError, PermissionError, OSError):
+        return start, ""
+
+
+def contains_bad_tokens(text: str, include_inf: bool) -> bool:
+    if not text:
+        return False
+    if NAN_RE.search(text):
+        return True
+    if include_inf and INF_RE.search(text):
+        return True
+    return False
+
+
+# --- Kill / Termination actions ---------------------------------------------
+
+def try_kill(args: argparse.Namespace) -> None:
+    """Attempt to terminate the job/process according to flags."""
+    if args.dry_run:
+        print("[DRY-RUN] Would terminate job (skipping actual kill).", flush=True)
+        return
+
+    did_something = False
+
+    # 1) PID signaling
+    if args.pid:
+        sig = getattr(signal, f"SIG{args.signal}")
+        print(f"Sending SIG{args.signal} to PID {args.pid}", flush=True)
+        try:
+            os.kill(args.pid, sig)
+            did_something = True
+        except ProcessLookupError:
+            print(f"[WARN] PID {args.pid} does not exist.", flush=True)
+        except PermissionError as e:
+            print(f"[ERROR] No permission to signal PID {args.pid}: {e}", flush=True)
+        except Exception as e:
+            print(f"[ERROR] Failed to signal PID {args.pid}: {e}", flush=True)
+
+        # Optional escalation to SIGKILL
+        if args.grace > 0 and sig != signal.SIGKILL:
+            time.sleep(args.grace)
+            try:
+                os.kill(args.pid, 0)
+            except ProcessLookupError:
+                pass  # process is gone
+            else:
+                print(f"Escalating to SIGKILL for PID {args.pid}", flush=True)
+                try:
+                    os.kill(args.pid, signal.SIGKILL)
+                except Exception as e:
+                    print(f"[ERROR] SIGKILL failed for PID {args.pid}: {e}", flush=True)
+
+    # 2) Arbitrary kill command (works for PBS, etc.)
+    if args.kill_command:
+        print(f"Running kill command: {args.kill_command}", flush=True)
+        try:
+            subprocess.run(args.kill_command, shell=True, check=False)
+            did_something = True
+        except Exception as e:
+            print(f"[ERROR] Kill command failed: {e}", flush=True)
+
+    if not did_something:
+        print("[WARN] No kill action executed (provide --pid or --kill-command).", flush=True)
+
+
+# --- CLI / Main --------------------------------------------------------------
 
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(
@@ -43,12 +167,15 @@ def parse_args() -> argparse.Namespace:
     p.add_argument(
         "--outputs",
         required=True,
-        help="Glob pattern for files to watch (quote to avoid shell expansion).",
+        help=(
+            "File specs to watch. Accepts colon/comma-separated literal paths or glob patterns. "
+            "Quote the argument to avoid shell expansion."
+        ),
     )
     p.add_argument(
         "--recursive",
         action="store_true",
-        help="Enable recursive globbing (uses glob recursive=True; ** patterns allowed).",
+        help="Enable recursive globbing for patterns containing **.",
     )
     p.add_argument(
         "--check",
@@ -106,96 +233,16 @@ def parse_args() -> argparse.Namespace:
     return p.parse_args()
 
 
-def now() -> str:
-    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-
-def vprint(verbose: bool, *msg):
-    if verbose:
-        print(f"[{now()}]", *msg, flush=True)
-
-
-def list_files(pattern: str, recursive: bool) -> Dict[str, int]:
-    # Return current files matching the pattern with their size in bytes
-    files = glob.glob(pattern, recursive=recursive)
-    return {f: os.path.getsize(f) for f in files if os.path.isfile(f)}
-
-
-def scan_new_bytes(path: str, start: int) -> Tuple[int, str]:
-    """Read bytes from a file starting at offset `start` and return (new_end, text)."""
-    size = os.path.getsize(path)
-    if start >= size:
-        return size, ""
-    with open(path, "r", errors="replace") as fh:
-        fh.seek(start)
-        data = fh.read()
-    return size, data
-
-
-def contains_bad_tokens(text: str, include_inf: bool) -> bool:
-    if not text:
-        return False
-    if NAN_RE.search(text):
-        return True
-    if include_inf and INF_RE.search(text):
-        return True
-    return False
-
-
-def try_kill(args: argparse.Namespace) -> None:
-    """Attempt to terminate the job/process according to flags."""
-    if args.dry_run:
-        print("[DRY-RUN] Would terminate job (skipping actual kill).", flush=True)
-        return
-
-    did_something = False
-
-    # 2) PID signaling
-    if args.pid:
-        sig = getattr(signal, f"SIG{args.signal}")
-        print(f"Sending SIG{args.signal} to PID {args.pid}", flush=True)
-        try:
-            os.kill(args.pid, sig)
-            did_something = True
-        except ProcessLookupError:
-            print(f"[WARN] PID {args.pid} does not exist.", flush=True)
-        except PermissionError as e:
-            print(f"[ERROR] No permission to signal PID {args.pid}: {e}", flush=True)
-        except Exception as e:
-            print(f"[ERROR] Failed to signal PID {args.pid}: {e}", flush=True)
-
-        # Optional escalation to SIGKILL
-        if args.grace > 0 and sig != signal.SIGKILL:
-            time.sleep(args.grace)
-            try:
-                os.kill(args.pid, 0)
-            except ProcessLookupError:
-                pass  # process is gone
-            else:
-                print(f"Escalating to SIGKILL for PID {args.pid}", flush=True)
-                try:
-                    os.kill(args.pid, signal.SIGKILL)
-                except Exception as e:
-                    print(f"[ERROR] SIGKILL failed for PID {args.pid}: {e}", flush=True)
-
-    # 3) Arbitrary kill command
-    if args.kill_command:
-        print(f"Running kill command: {args.kill_command}", flush=True)
-        try:
-            subprocess.run(args.kill_command, shell=True, check=False)
-            did_something = True
-        except Exception as e:
-            print(f"[ERROR] Kill command failed: {e}", flush=True)
-
-    if not did_something:
-        print("[WARN] No kill action executed (provide --slurm, --pid, or --kill-command).", flush=True)
-
-
 def main() -> int:
     args = parse_args()
+    specs = split_outputs(args.outputs)
+
+    if not specs:
+        print("[ERROR] No valid --outputs provided.", flush=True)
+        return 3
 
     print(
-        f"[{now()}] Monitoring for NaN{'/Inf' if args.include_inf else ''} in: {args.outputs}",
+        f"[{now()}] Monitoring for NaN{'/Inf' if args.include_inf else ''} in: {', '.join(specs)}",
         flush=True,
     )
 
@@ -209,7 +256,7 @@ def main() -> int:
             return 0
 
         # Discover files and initialize offsets for new files
-        current = list_files(args.outputs, args.recursive)
+        current = list_files(specs, args.recursive)
         for path, size in current.items():
             if path not in offsets:
                 offsets[path] = 0  # start reading from beginning for new files
