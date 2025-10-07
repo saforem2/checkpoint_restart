@@ -3,7 +3,7 @@ requires = ["hatchling>=1.18"]
 build-backend = "hatchling.build"
 
 [project]
-name = "exacheckmate"
+name = "check-mate"
 version = "0.1.0"
 description = "Monitoring and recovery helpers for exascale checkpoint/restart workflows"
 readme = "README.md"
@@ -28,16 +28,16 @@ dependencies = []
 
 [project.urls]
 Homepage = "https://github.com/argonne-lcf/checkpoint_restart"
-Documentation = "https://example.com/exacheckmate"
+Documentation = "https://example.com/check-mate"
 Source = "https://github.com/argonne-lcf/checkpoint_restart"
 
 [project.scripts]
-check-hang = "exacheckmate.check_hang:main"
-check-nan = "exacheckmate.check_nan:main"
-get-healthy-nodes = "exacheckmate.cli:get_healthy_nodes"
-exacheckmate-launcher = "exacheckmate.cli:launcher"
-exacheckmate-flush = "exacheckmate.cli:flush"
-exacheckmate = "exacheckmate.cli:main"
+check-hang = "check_mate.check_hang:main"
+check-nan = "check_mate.check_nan:main"
+get-healthy-nodes = "check_mate.cli:get_healthy_nodes"
+check-mate-launcher = "check_mate.cli:launcher"
+check-mate-flush = "check_mate.cli:flush"
+check-mate = "check_mate.cli:main"
 
 [project.optional-dependencies]
 docs = [
@@ -51,7 +51,7 @@ dev = [
 
 [tool.hatch.build]
 include = [
-  "src/exacheckmate",
+  "src/check_mate",
   "README.md",
   "LICENSE",
   "mkdocs.yml",
@@ -59,11 +59,11 @@ include = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/exacheckmate"]
+packages = ["src/check_mate"]
 
 [tool.hatch.build.targets.sdist]
 include = [
-  "src/exacheckmate",
+  "src/check_mate",
   "README.md",
   "mkdocs.yml",
   "docs",

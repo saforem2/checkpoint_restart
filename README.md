@@ -1,4 +1,4 @@
-# Exacheckmate – Checkpoint/Restart helpers for exascale computing
+# Check Mate – Checkpoint/Restart helpers for exascale computing
 
 For questions, please contact: Huihuo Zheng <huihuo.zheng@anl.gov>
 
@@ -22,7 +22,15 @@ git clone https://github.com/argonne-lcf/checkpoint_restart
 cd checkpoint_restart
 pip install -e .
 ```
-This will install the `check-hang`, `check-nan`, `get-healthy-nodes`, `exacheckmate-launcher`, and `exacheckmate-flush` command line tools into your environment.
+This will install the `check-hang`, `check-nan`, `get-healthy-nodes`, `check-mate-launcher`, and `check-mate-flush` command line tools into your environment.
+
+## Python usage
+
+```python
+import check_mate as cm
+
+print(cm.__version__)
+```
 
 ## Useful Scripts
 
@@ -62,13 +70,13 @@ This repository includes several scripts to help manage and monitor jobs. After 
   get-healthy-nodes NODEFILE NUM_NODES_TO_SELECT NEW_NODEFILE
   ```
 
-- `exacheckmate-launcher`: Export launch-friendly environment variables derived from common PBS/PMI metadata before executing a command.
+- `check-mate-launcher`: Export launch-friendly environment variables derived from common PBS/PMI metadata before executing a command.
   ```bash
-  exacheckmate-launcher python test_pyjob.py --hang 30
+  check-mate-launcher python test_pyjob.py --hang 30
   ```
-- `exacheckmate-flush`: Invoke the bundled flush helper to clean up processes on allocated nodes (requires `clush`).
+- `check-mate-flush`: Invoke the bundled flush helper to clean up processes on allocated nodes (requires `clush`).
   ```bash
-  PBS_NODEFILE=NODEFILE exacheckmate-flush
+  PBS_NODEFILE=NODEFILE check-mate-flush
   ```
 
 ## Simulation of job execution: hang, fail, success

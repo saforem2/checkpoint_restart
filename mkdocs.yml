@@ -1,7 +1,7 @@
-site_name: Exacheckmate
-site_url: https://example.com/exacheckmate
+site_name: Check Mate
+site_url: https://example.com/check-mate
 repo_url: https://github.com/argonne-lcf/checkpoint_restart
-site_description: "Documentation for the exacheckmate checkpoint/restart helpers"
+site_description: "Documentation for the Check Mate checkpoint/restart helpers"
 theme:
   name: material
   palette:

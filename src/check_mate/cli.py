@@ -8,7 +8,7 @@ import sys
 from importlib import resources
 from typing import Iterable
 
-_RESOURCE_PACKAGE = "exacheckmate.resources"
+_RESOURCE_PACKAGE = "check_mate.resources"
 
 
 def _run_shell(script: str, argv: Iterable[str]) -> int:
@@ -40,7 +40,7 @@ def get_healthy_nodes(argv: list[str] | None = None) -> int:
 
 def launcher(argv: list[str] | None = None) -> int:
     """Proxy console script for :mod:`launcher.sh`."""
-    parser = argparse.ArgumentParser(prog="exacheckmate-launcher", add_help=False)
+    parser = argparse.ArgumentParser(prog="check-mate-launcher", add_help=False)
     parser.add_argument("args", nargs=argparse.REMAINDER)
     ns = parser.parse_args(argv)
     return _run_shell("launcher.sh", ns.args)
@@ -48,7 +48,7 @@ def launcher(argv: list[str] | None = None) -> int:
 
 def flush(argv: list[str] | None = None) -> int:
     """Proxy console script for :mod:`flush.sh`."""
-    parser = argparse.ArgumentParser(prog="exacheckmate-flush", add_help=False)
+    parser = argparse.ArgumentParser(prog="check-mate-flush", add_help=False)
     parser.add_argument("args", nargs=argparse.REMAINDER)
     ns = parser.parse_args(argv)
     return _run_shell("flush.sh", ns.args)
@@ -56,8 +56,8 @@ def flush(argv: list[str] | None = None) -> int:
 
 def main() -> int:  # pragma: no cover - convenience dispatcher
     parser = argparse.ArgumentParser(
-        prog="exacheckmate",
-        description="Utility command dispatcher for exacheckmate tools.",
+        prog="check-mate",
+        description="Utility command dispatcher for check-mate tools.",
     )
     parser.add_argument(
         "tool",
