@@ -1,4 +1,4 @@
-# Checkpoint / Restart tests on Exascale computing systems
+# Exacheckmate – Checkpoint/Restart helpers for exascale computing
 
 For questions, please contact: Huihuo Zheng <huihuo.zheng@anl.gov>
 
@@ -22,15 +22,15 @@ git clone https://github.com/argonne-lcf/checkpoint_restart
 cd checkpoint_restart
 pip install -e .
 ```
-This will install the `check_hang.py`, `check_nan.py`, and `get_healthy_nodes.sh` scripts into your environment.
+This will install the `check-hang`, `check-nan`, `get-healthy-nodes`, `exacheckmate-launcher`, and `exacheckmate-flush` command line tools into your environment.
 
 ## Useful Scripts
 
-This repository includes several scripts to help manage and monitor jobs. After installation, `check_hang.py`, `check_nan.py`, and `get_healthy_nodes.sh` will be available in your PATH.
+This repository includes several scripts to help manage and monitor jobs. After installation, `check-hang`, `check-nan`, and `get-healthy-nodes` will be available in your PATH.
 
-- `check_hang.py`: Monitors files for updates and kills a job if it stops changing for longer than a specified timeout. This is useful for detecting hung processes.
+- `check-hang`: Monitors files for updates and kills a job if it stops changing for longer than a specified timeout. This is useful for detecting hung processes.
   ```bash
-  check_hang.py --timeout 600 --check 10 --command "mpiexec python train.py"
+  check-hang --timeout 600 --check 10 --command "mpiexec python train.py"
   ```
   **Arguments:**
   - `--timeout`: Seconds of inactivity after which the job will be killed (default: 300).
@@ -40,9 +40,9 @@ This repository includes several scripts to help manage and monitor jobs. After 
   - `--grace`: Seconds to wait after sending the kill command before exiting (default: 10).
   - `--dry-run`: If set, do not actually run the kill command—only log the action.
 
-- `check_nan.py`: Monitors text output files for `NaN` or `Inf` values and terminates the job if they are found. This is useful for catching numerical stability issues.
+- `check-nan`: Monitors text output files for `NaN` or `Inf` values and terminates the job if they are found. This is useful for catching numerical stability issues.
   ```bash
-  check_nan.py --outputs "logs/*.out" --check 15 --kill-command "scancel $SLURM_JOB_ID"
+  check-nan --outputs "logs/*.out" --check 15 --kill-command "scancel $SLURM_JOB_ID"
   ```
   **Arguments:**
   - `--outputs`: Glob pattern for files to watch.
@@ -57,14 +57,18 @@ This repository includes several scripts to help manage and monitor jobs. After 
   - `--dry-run`: Detect and report but do not kill or run commands.
   - `--verbose`: Print verbose progress messages.
 
-- `get_healthy_nodes.sh`: Selects a subset of healthy nodes from a larger allocation, writing them to a new nodefile. This is key to the restart mechanism.
+- `get-healthy-nodes`: Selects a subset of healthy nodes from a larger allocation, writing them to a new nodefile. This is key to the restart mechanism.
   ```bash
-  get_healthy_nodes.sh NODEFILE NUM_NODES_TO_SELECT NEW_NODEFILE
+  get-healthy-nodes NODEFILE NUM_NODES_TO_SELECT NEW_NODEFILE
   ```
 
-- `utils/flush.sh`: A utility to clean up processes on allocated nodes, excluding the head node. This script is not installed via pip.
+- `exacheckmate-launcher`: Export launch-friendly environment variables derived from common PBS/PMI metadata before executing a command.
   ```bash
-  PBS_NODEFILE=NODEFILE ./utils/flush.sh
+  exacheckmate-launcher python test_pyjob.py --hang 30
+  ```
+- `exacheckmate-flush`: Invoke the bundled flush helper to clean up processes on allocated nodes (requires `clush`).
+  ```bash
+  PBS_NODEFILE=NODEFILE exacheckmate-flush
   ```
 
 ## Simulation of job execution: hang, fail, success

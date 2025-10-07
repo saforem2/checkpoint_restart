@@ -1,12 +1,7 @@
-#!/usr/bin/env python3
-"""
-Monitor one or more output files for recent updates and kill a job if they
-stop changing for longer than a timeout.
+"""Command-line monitor for detecting stalled checkpoint files."""
 
-Examples:
-  python check_hang.py --outputs a.out:train.log --timeout 600 \
-    --check 10 --kill-command "pkill -u $USER python my_script.py"
-"""
+from __future__ import annotations
+
 import argparse
 import os
 import shlex
@@ -15,18 +10,18 @@ import sys
 import time
 from pathlib import Path
 from time import localtime, strftime
-from typing import List, Optional
+from typing import Optional
 
-__version__ = "0.2.0"
+from . import __version__
 
 
 def get_date(etime: float) -> str:
     return strftime("%Y-%m-%d %H:%M:%S", localtime(etime))
 
 
-def most_recent_mtime(paths: List[Path]) -> Optional[float]:
+def most_recent_mtime(paths: list[Path]) -> Optional[float]:
     """Return the most recent mtime among existing paths; None if none exist."""
-    mtimes: List[float] = []
+    mtimes: list[float] = []
     for p in paths:
         try:
             if p.exists():

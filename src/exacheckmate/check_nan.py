@@ -1,23 +1,7 @@
-#!/usr/bin/env python3
-"""
-check_nan.py — Monitor text output files for NaN/Inf and terminate a job if found.
+"""Command-line utility for detecting NaN/Inf tokens in log files."""
 
-Typical usage examples:
-  # Scan multiple outputs (colon- or comma-separated), every 15s; on detection run a PBS kill command
-  python check_nan.py --outputs "logs/job.out:logs/job.err,output.log" --check 15 \
-      --kill-command "qdel $PBS_JOBID"
+from __future__ import annotations
 
-  # Scan recursively via glob; send SIGTERM to a PID on detection (then SIGKILL after grace)
-  python check_nan.py --outputs "runs/**/stdout.txt" --recursive \
-      --pid 123456 --signal TERM --grace 20
-
-Notes:
-- You can pass **colon or comma separated** file specs to --outputs. Each spec may be
-  a literal file path or a glob pattern (supports ** when --recursive is used).
-- This script treats any case-insensitive occurrence of the tokens `nan` or `inf`
-  as problematic (configurable via --include-inf). It reads files incrementally to
-  avoid re-scanning from the beginning on each poll.
-"""
 import argparse
 import glob
 import os
@@ -27,7 +11,6 @@ import subprocess
 import sys
 import time
 from datetime import datetime
-from typing import Dict, Tuple, List
 
 # --- Regex helpers -----------------------------------------------------------
 NAN_RE = re.compile(r"(?<![A-Za-z0-9_])nan(?![A-Za-z0-9_])", re.IGNORECASE)
@@ -44,11 +27,11 @@ def vprint(verbose: bool, *msg):
         print(f"[{now()}]", *msg, flush=True)
 
 
-def split_outputs(outputs: str) -> List[str]:
+def split_outputs(outputs: str) -> list[str]:
     """Split --outputs string by ':' and ',' into a list of specs, stripping blanks."""
     if not outputs:
         return []
-    specs: List[str] = []
+    specs: list[str] = []
     for part in outputs.replace(",", ":").split(":"):
         part = part.strip()
         if part:
@@ -60,11 +43,11 @@ def is_glob(spec: str) -> bool:
     return any(ch in spec for ch in ["*", "?", "["])
 
 
-def list_files(specs: List[str], recursive: bool) -> Dict[str, int]:
+def list_files(specs: list[str], recursive: bool) -> dict[str, int]:
     """Resolve a list of file specs (globs or literal paths) to existing files -> size."""
-    files: Dict[str, int] = {}
+    files: dict[str, int] = {}
     for spec in specs:
-        matched: List[str]
+        matched: list[str]
         if is_glob(spec):
             matched = glob.glob(spec, recursive=recursive)
         else:
@@ -82,7 +65,7 @@ def list_files(specs: List[str], recursive: bool) -> Dict[str, int]:
     return files
 
 
-def scan_new_bytes(path: str, start: int) -> Tuple[int, str]:
+def scan_new_bytes(path: str, start: int) -> tuple[int, str]:
     """Read text from a file starting at offset `start` and return (new_end, text)."""
     try:
         size = os.path.getsize(path)
@@ -246,7 +229,7 @@ def main() -> int:
         flush=True,
     )
 
-    offsets: Dict[str, int] = {}
+    offsets: dict[str, int] = {}
     first_seen = time.time()
 
     while True:
