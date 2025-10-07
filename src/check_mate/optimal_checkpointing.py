@@ -28,16 +28,22 @@ def optimal_checkpoint_cadence(
         R_0 = 1 / (MTBAI * 10624)
 
     chkpt_bandwidth = _resolve_bandwidth(chkpt_bandwidth)
-    tau_c = node_memory / (chkpt_bandwidth * 3600)
+    tau_c = (node_memory / chkpt_bandwidth) / 3600
     u_chk = tau_c * node_count**2
     z_chk = R_0 * u_chk
 
     def rootme(z_c, z_chk):
         return np.exp(-z_c - z_chk) - (1 - z_c)
 
-    res = root_scalar(rootme, args=(z_chk,), bracket=(0, 0.999))
+    bracket_min = 0.0
+    bracket_max = max(1.5 * z_chk, 1.0)
+
+    res = root_scalar(rootme, args=(z_chk,), bracket=(bracket_min, bracket_max))
     if not res.converged:
-        raise RuntimeError("Root-find convergence failure")
+        raise RuntimeError(
+            "Root-find convergence failure for bracket=("
+            f"{bracket_min}, {bracket_max})."
+        )
 
     z_c = res.root
     u_c = z_c / R_0
@@ -66,9 +72,10 @@ def compute_efficiency(
     )
     if T_c <= 0:
         raise ValueError("T_c must be positive")
+    if T_w <= 0:
+        raise ValueError("T_w must be positive")
 
-    efficiency = np.exp(-(T_c + T_w) / t_c)
-    return efficiency
+    return np.exp(-(T_c + T_w) / t_c)
 
 
 __all__ = [

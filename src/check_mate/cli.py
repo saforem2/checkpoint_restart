@@ -19,39 +19,44 @@ def _run_shell(script: str, argv: Iterable[str]) -> int:
         raise RuntimeError(f"Unable to locate bundled script: {script}") from None
 
     with resources.as_file(resource) as path:
-        result = subprocess.run(["bash", str(path), *argv], check=False)
+        result = subprocess.run(
+            ["bash", str(path), *argv],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    if result.returncode != 0:
+        print(
+            f"Error running script '{script}':\n{result.stderr}",
+            file=sys.stderr,
+        )
     return result.returncode
 
 
-def get_healthy_nodes(argv: list[str] | None = None) -> int:
-    """Proxy console script for :mod:`get_healthy_nodes.sh`."""
-    parser = argparse.ArgumentParser(
-        prog="get-healthy-nodes",
-        description=(
-            "Select a subset of responsive nodes from a nodefile by delegating to the "
-            "bundled shell implementation."
-        ),
-        add_help=False,
-    )
-    parser.add_argument("args", nargs=argparse.REMAINDER)
-    ns = parser.parse_args(argv)
-    return _run_shell("get_healthy_nodes.sh", ns.args)
+def _make_proxy(script: str, prog: str, description: str | None = None):
+    def proxy(argv: list[str] | None = None) -> int:
+        parser = argparse.ArgumentParser(
+            prog=prog,
+            description=description,
+            add_help=False,
+        )
+        parser.add_argument("args", nargs=argparse.REMAINDER)
+        ns = parser.parse_args(argv)
+        return _run_shell(script, ns.args)
+
+    return proxy
 
 
-def launcher(argv: list[str] | None = None) -> int:
-    """Proxy console script for :mod:`launcher.sh`."""
-    parser = argparse.ArgumentParser(prog="check-mate-launcher", add_help=False)
-    parser.add_argument("args", nargs=argparse.REMAINDER)
-    ns = parser.parse_args(argv)
-    return _run_shell("launcher.sh", ns.args)
-
-
-def flush(argv: list[str] | None = None) -> int:
-    """Proxy console script for :mod:`flush.sh`."""
-    parser = argparse.ArgumentParser(prog="check-mate-flush", add_help=False)
-    parser.add_argument("args", nargs=argparse.REMAINDER)
-    ns = parser.parse_args(argv)
-    return _run_shell("flush.sh", ns.args)
+get_healthy_nodes = _make_proxy(
+    "get_healthy_nodes.sh",
+    "get-healthy-nodes",
+    (
+        "Select a subset of responsive nodes from a nodefile by delegating to the "
+        "bundled shell implementation."
+    ),
+)
+launcher = _make_proxy("launcher.sh", "check-mate-launcher")
+flush = _make_proxy("flush.sh", "check-mate-flush")
 
 
 def main() -> int:  # pragma: no cover - convenience dispatcher
