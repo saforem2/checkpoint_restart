@@ -1,7 +1,7 @@
 #!/bin/bash
 #PBS -l walltime=0:20:00
 #PBS -q prod
-#PBS -N test_fail
+#PBS -N test_nan
 #PBS -l select=4
 #PBS -A datascience
 #PBS -l filesystems=home:flare
@@ -30,9 +30,9 @@ do
 
     # constantly check the job and kill the job if it hangs for 300 seconds
     check_hang.py --timeout 300 --outputs $PBS_JOBNAME.o$JOBID:$PBS_JOBNAME.e$JOBID:output.log --kill-command "pkill -u $USER python ./test_pyjob.py" >> check_hang.r$JOBID &
-
+    check_nan.py --outputs $PBS_JOBNAME.o$JOBID:$PBS_JOBNAME.e$JOBID:output.log --kill-command "pkill -u $USER python ./test_pyjob.py" >> check_nan.r$JOBID &
     # run the actual job, in this case, the job will run for 200 seconds and fail (finished about 9 iterations each time)
-    mpiexec -np $((JOBSIZE*12)) --ppn 12 launcher.sh python ./test_pyjob.py --compute 10 --niters 100 --output output.log --fail 500
+    mpiexec -np $((JOBSIZE*12)) --ppn 12 launcher.sh python ./test_pyjob.py --compute 10 --niters 100 --output output.log --nan-after 5
 
     EXIT_CODE=$?
     # Check the job status
