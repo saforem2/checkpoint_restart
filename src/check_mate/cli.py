@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 import argparse
-import textwrap
-import signal
 import subprocess
 import sys
+import textwrap
 from importlib import resources
 from typing import Iterable
 
@@ -38,18 +37,12 @@ _TOOLS: tuple[tuple[str, str, str, str | None], ...] = (
     ),
 )
 _TOOL_SCRIPTS = {name: script for name, script, *_ in _TOOLS}
-_COMMAND_SUMMARY = "\n".join(
-    "\n".join(
-        filter(
-            None,
-            (
-                f"  {name:<18} {help_text}",
-                f"    {description}" if description else None,
-            ),
-        )
-    )
-    for name, _, help_text, description in _TOOLS
-)
+_COMMAND_LINES: list[str] = []
+for name, _, help_text, description in _TOOLS:
+    _COMMAND_LINES.append(f"  {name:<18} {help_text}")
+    if description:
+        _COMMAND_LINES.append(f"    {description}")
+_COMMAND_SUMMARY = "\n".join(_COMMAND_LINES)
 
 
 def _run_shell(script: str, argv: Iterable[str]) -> int:
@@ -60,31 +53,35 @@ def _run_shell(script: str, argv: Iterable[str]) -> int:
         raise RuntimeError(f"Unable to locate bundled script: {script}") from None
 
     with resources.as_file(resource) as path:
-        process = subprocess.Popen(
-            ["bash", str(path), *argv],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-        )
+        args = list(argv)
         try:
-            stdout, stderr = process.communicate()
+            result = subprocess.run(
+                ["bash", str(path), *args],
+                capture_output=True,
+                text=True,
+            )
         except KeyboardInterrupt:  # pragma: no cover - user interrupt
-            try:
-                process.send_signal(signal.SIGINT)
-            except ProcessLookupError:  # pragma: no cover - process already exited
-                pass
-            process.wait()
             print("Execution interrupted by user.", file=sys.stderr)
             return 130
+        except OSError as exc:
+            raise RuntimeError(
+                f"Failed to execute script '{script}': {exc.strerror or exc}"
+            ) from exc
 
-    if stdout:
-        print(stdout, end="")
-    if process.returncode != 0:
-        print(
-            f"Error running script '{script}':\n{stderr}",
-            file=sys.stderr,
-        )
-    return process.returncode
+    if result.stdout:
+        print(result.stdout, end="")
+    if result.returncode != 0:
+        if result.stderr:
+            print(
+                f"Error running script '{script}':\n{result.stderr}",
+                file=sys.stderr,
+            )
+        else:
+            print(
+                f"Error running script '{script}':\nNo error output captured.",
+                file=sys.stderr,
+            )
+    return result.returncode
 
 
 def get_healthy_nodes(argv: list[str] | None = None) -> int:

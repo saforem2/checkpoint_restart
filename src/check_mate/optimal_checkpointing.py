@@ -2,6 +2,18 @@
 
 from __future__ import annotations
 
+import warnings
+
+import numpy as np
+from scipy.optimize import root_scalar
+
+_MTBAI_TO_R0_FACTOR = 10624
+
+
+def _validate_positive(name: str, value: float) -> None:
+    if value <= 0:
+        raise ValueError(f"{name} must be positive")
+
 
 def _resolve_bandwidth(value: float | int | str) -> float:
     if value == "DAOS-128":
@@ -21,61 +33,50 @@ def optimal_checkpoint_cadence(
     R_0: float | None = None,
 ) -> float:
     """Calculate the optimal checkpoint cadence in hours."""
-    import numpy as np
-    from scipy.optimize import root_scalar
+    _validate_positive("node_count", node_count)
+    _validate_positive("node_memory", node_memory)
+    chkpt_bandwidth = _resolve_bandwidth(chkpt_bandwidth)
+    _validate_positive("chkpt_bandwidth", chkpt_bandwidth)
 
     if R_0 is None:
-        R_0 = 1 / (MTBAI * 10624)
-
-    chkpt_bandwidth = _resolve_bandwidth(chkpt_bandwidth)
-    if chkpt_bandwidth <= 0:
-        raise ValueError("chkpt_bandwidth must be positive")
+        _validate_positive("MTBAI", MTBAI)
+        R_0 = 1 / (MTBAI * _MTBAI_TO_R0_FACTOR)
 
     tau_c = (node_memory / chkpt_bandwidth) / 3600
     u_chk = tau_c * node_count**2
     z_chk = R_0 * u_chk
 
-    def rootme(z_c, z_chk):
-        return np.exp(-z_c - z_chk) - (1 - z_c)
+    def rootme(z_c: float, z_chk_val: float) -> float:
+        return np.exp(-z_c - z_chk_val) - (1 - z_c)
 
-    bracket_min = 0.0
-    bracket_max = max(1.5 * z_chk, 1.0)
-
-    f_min = rootme(bracket_min, z_chk)
-    f_max = rootme(bracket_max, z_chk)
-    expansion_factor = 2.0
-    max_expansions = 10
-    expansions = 0
-
-    while f_min * f_max > 0 and expansions < max_expansions:
-        bracket_max *= expansion_factor
-        f_max = rootme(bracket_max, z_chk)
-        expansions += 1
-
-    if f_min * f_max > 0:
-        raise RuntimeError(
-            "Could not bracket root for rootme(z_c, z_chk) after "
-            f"{max_expansions} expansions. "
-            f"z_chk={z_chk}, bracket=({bracket_min}, {bracket_max}). "
-            "Consider checking input values or providing alternative parameters."
+    bracket = (0.0, max(1.5 * z_chk, 1.0))
+    try:
+        res = root_scalar(
+            rootme,
+            args=(z_chk,),
+            bracket=bracket,
+            method="brentq",
         )
+    except ValueError as exc:  # pragma: no cover - rare numerical failures
+        raise RuntimeError(
+            "Could not bracket root for rootme(z_c, z_chk) "
+            f"with z_chk={z_chk} and bracket={bracket}."
+        ) from exc
 
-    res = root_scalar(rootme, args=(z_chk,), bracket=(bracket_min, bracket_max))
     if not res.converged:
-        f_bracket_min = rootme(bracket_min, z_chk)
-        f_bracket_max = rootme(bracket_max, z_chk)
+        f_bracket_min = rootme(bracket[0], z_chk)
+        f_bracket_max = rootme(bracket[1], z_chk)
         n_iter = getattr(res, "iterations", "N/A")
         raise RuntimeError(
             "Root-find convergence failure for bracket=("
-            f"{bracket_min}, {bracket_max}). "
-            f"Function values: f({bracket_min})={f_bracket_min}, "
-            f"f({bracket_max})={f_bracket_max}. Iterations: {n_iter}."
+            f"{bracket[0]}, {bracket[1]}). "
+            f"Function values: f({bracket[0]})={f_bracket_min}, "
+            f"f({bracket[1]})={f_bracket_max}. Iterations: {n_iter}."
         )
 
     z_c = res.root
     u_c = z_c / R_0
-    t_c = u_c / node_count
-    return t_c
+    return u_c / node_count
 
 
 def compute_efficiency(
@@ -88,8 +89,8 @@ def compute_efficiency(
     T_w: float = 3.0,
 ) -> float:
     """Compute expected efficiency for the given checkpoint parameters."""
-    import numpy as np
-    import warnings
+    _validate_positive("T_c", T_c)
+    _validate_positive("T_w", T_w)
 
     t_c = optimal_checkpoint_cadence(
         node_count,
@@ -98,17 +99,12 @@ def compute_efficiency(
         chkpt_bandwidth=chkpt_bandwidth,
         R_0=R_0,
     )
-    if T_c <= 0:
-        raise ValueError("T_c must be positive")
-    if T_w <= 0:
-        raise ValueError("T_w must be positive")
-    if t_c <= 0:
-        raise ValueError("t_c must be positive")
+    _validate_positive("t_c", t_c)
     if t_c < 0.1:
         warnings.warn(
             (
-                "Computed optimal checkpoint cadence is very small ("
-                f"t_c={t_c:.4f} h); efficiency results may not be meaningful."
+                "Computed optimal checkpoint cadence is very small "
+                f"(t_c={t_c:.4f} h); efficiency results may not be meaningful."
             ),
             UserWarning,
             stacklevel=2,
