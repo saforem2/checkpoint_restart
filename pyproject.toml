@@ -37,9 +37,6 @@ Source = "https://github.com/argonne-lcf/checkpoint_restart"
 [project.scripts]
 check-hang = "check_mate.check_hang:main"
 check-nan = "check_mate.check_nan:main"
-get-healthy-nodes = "check_mate.cli:get_healthy_nodes"
-check-mate-launcher = "check_mate.cli:launcher"
-check-mate-flush = "check_mate.cli:flush"
 check-mate = "check_mate.cli:main"
 
 [project.optional-dependencies]
@@ -63,6 +60,7 @@ include = [
 
 [tool.hatch.build.targets.wheel]
 packages = ["check_mate"]
+force-include = { "src/check_mate/resources" = "check_mate/resources" }
 
 [tool.hatch.build.targets.sdist]
 include = [

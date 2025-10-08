@@ -62,9 +62,14 @@ def optimal_checkpoint_cadence(
 
     res = root_scalar(rootme, args=(z_chk,), bracket=(bracket_min, bracket_max))
     if not res.converged:
+        f_bracket_min = rootme(bracket_min, z_chk)
+        f_bracket_max = rootme(bracket_max, z_chk)
+        n_iter = getattr(res, "iterations", "N/A")
         raise RuntimeError(
             "Root-find convergence failure for bracket=("
-            f"{bracket_min}, {bracket_max})."
+            f"{bracket_min}, {bracket_max}). "
+            f"Function values: f({bracket_min})={f_bracket_min}, "
+            f"f({bracket_max})={f_bracket_max}. Iterations: {n_iter}."
         )
 
     z_c = res.root
