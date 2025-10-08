@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import textwrap
 import signal
 import subprocess
 import sys
@@ -36,7 +37,19 @@ _TOOLS: tuple[tuple[str, str, str, str | None], ...] = (
         None,
     ),
 )
-_TOOL_MAP = {name: (script, help_text, desc) for name, script, help_text, desc in _TOOLS}
+_TOOL_SCRIPTS = {name: script for name, script, *_ in _TOOLS}
+_COMMAND_SUMMARY = "\n".join(
+    "\n".join(
+        filter(
+            None,
+            (
+                f"  {name:<18} {help_text}",
+                f"    {description}" if description else None,
+            ),
+        )
+    )
+    for name, _, help_text, description in _TOOLS
+)
 
 
 def _run_shell(script: str, argv: Iterable[str]) -> int:
@@ -74,48 +87,50 @@ def _run_shell(script: str, argv: Iterable[str]) -> int:
     return process.returncode
 
 
-def _dispatch(command: str, argv: list[str] | None = None) -> int:
-    script, _, description = _TOOL_MAP[command]
-    parser = argparse.ArgumentParser(
-        prog=f"check-mate {command}",
-        description=description,
-    )
-    parser.add_argument("args", nargs=argparse.REMAINDER)
-    ns = parser.parse_args(argv)
-    return _run_shell(script, ns.args)
-
-
 def get_healthy_nodes(argv: list[str] | None = None) -> int:
-    return _dispatch("get-healthy-nodes", argv)
+    return _run_shell(
+        _TOOL_SCRIPTS["get-healthy-nodes"],
+        argv if argv is not None else sys.argv[1:],
+    )
 
 
 def launcher(argv: list[str] | None = None) -> int:
-    return _dispatch("launcher", argv)
+    return _run_shell(
+        _TOOL_SCRIPTS["launcher"],
+        argv if argv is not None else sys.argv[1:],
+    )
 
 
 def flush(argv: list[str] | None = None) -> int:
-    return _dispatch("flush", argv)
+    return _run_shell(
+        _TOOL_SCRIPTS["flush"],
+        argv if argv is not None else sys.argv[1:],
+    )
 
 
 def main(argv: list[str] | None = None) -> int:  # pragma: no cover - convenience dispatcher
     parser = argparse.ArgumentParser(
         prog="check-mate",
         description="Utility command dispatcher for check-mate tools.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=textwrap.dedent(
+            "Available commands:\n" + _COMMAND_SUMMARY
+        ).strip(),
     )
     parser.add_argument(
         "--version",
         action="version",
         version=f"%(prog)s {__version__}",
     )
-    subparsers = parser.add_subparsers(dest="command", required=True)
-
-    for name, (script, help_text, desc) in _TOOL_MAP.items():
-        sub = subparsers.add_parser(name, help=help_text, description=desc)
-        sub.add_argument("args", nargs=argparse.REMAINDER)
-        sub.set_defaults(script=script)
+    parser.add_argument(
+        "command",
+        choices=tuple(_TOOL_SCRIPTS.keys()),
+        help="Which bundled tool to execute.",
+    )
+    parser.add_argument("args", nargs=argparse.REMAINDER)
 
     ns = parser.parse_args(argv)
-    return _run_shell(ns.script, ns.args)
+    return _run_shell(_TOOL_SCRIPTS[ns.command], ns.args)
 
 
 if __name__ == "__main__":  # pragma: no cover - script entry point
