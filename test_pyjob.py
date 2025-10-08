@@ -1,4 +1,28 @@
 #!/usr/bin/env python
+"""
+This script simulates a job with various behaviors for testing purposes.
+It supports options to simulate hanging, failing, generating NaN/Inf values,
+and checkpointing.
+
+Arguments:
+    --compute: Time period for each iteration (default: 10 seconds)
+    --niters: Number of iterations (default: 100)
+    --checkpoint: Checkpoint file to save progress (default: "latest")
+    --hang: Time in seconds to hang the job (default: None)
+    --fail: Time in seconds after which the job should fail (default: None)
+    --exit-code: Exit code to use when failing (default: 1)
+    --nan-after: Number of iterations after which to generate NaN/Inf (default: None)
+    --save-interval: Interval for saving checkpoints (default: 1)
+    --output: Output file to write results (default: "output.log")
+    --checkpoint_time: Time period for checkpointing (default: 0 seconds)
+
+Environment Variables:
+    RANK: Rank of the process (default: 0)
+
+Usage:
+    python test_pyjob.py --compute 5 --niters 50 --fail 30 --exit-code 2
+"""
+
 import time
 import argparse
 import datetime
