@@ -7,9 +7,10 @@ Exascale computing systems often experience instabilities that can cause job ter
 To ensure large-scale simulations can continue efficiently, checkpoint/restart mechanisms are essential.
 
 This repository provides:
-	•	Simple programs to simulate common job execution issues:
-(1) hanging, (2) mid-run failures, and (3) successful completion.
-	•	Example submission scripts that automatically detect failures and restart jobs using healthy nodes.
+
+- Simple programs to simulate common job execution issues:
+  (1) hanging, (2) mid-run failures, and (3) successful completion.
+- Example submission scripts that automatically detect failures and restart jobs using healthy nodes.
 
 The **key idea** is to over-allocate nodes, allowing jobs to be restarted on a healthy subset of nodes if a failure occurs.
 
