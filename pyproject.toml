@@ -24,7 +24,10 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
   "Topic :: System :: Monitoring",
 ]
-dependencies = []
+dependencies = [
+  "numpy>=1.24",
+  "scipy>=1.9",
+]
 
 [project.urls]
 Homepage = "https://github.com/argonne-lcf/checkpoint_restart"
@@ -59,7 +62,7 @@ include = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/check_mate"]
+packages = ["check_mate"]
 
 [tool.hatch.build.targets.sdist]
 include = [

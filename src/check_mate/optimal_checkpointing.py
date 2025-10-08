@@ -28,6 +28,9 @@ def optimal_checkpoint_cadence(
         R_0 = 1 / (MTBAI * 10624)
 
     chkpt_bandwidth = _resolve_bandwidth(chkpt_bandwidth)
+    if chkpt_bandwidth <= 0:
+        raise ValueError("chkpt_bandwidth must be positive")
+
     tau_c = (node_memory / chkpt_bandwidth) / 3600
     u_chk = tau_c * node_count**2
     z_chk = R_0 * u_chk
@@ -37,6 +40,25 @@ def optimal_checkpoint_cadence(
 
     bracket_min = 0.0
     bracket_max = max(1.5 * z_chk, 1.0)
+
+    f_min = rootme(bracket_min, z_chk)
+    f_max = rootme(bracket_max, z_chk)
+    expansion_factor = 2.0
+    max_expansions = 10
+    expansions = 0
+
+    while f_min * f_max > 0 and expansions < max_expansions:
+        bracket_max *= expansion_factor
+        f_max = rootme(bracket_max, z_chk)
+        expansions += 1
+
+    if f_min * f_max > 0:
+        raise RuntimeError(
+            "Could not bracket root for rootme(z_c, z_chk) after "
+            f"{max_expansions} expansions. "
+            f"z_chk={z_chk}, bracket=({bracket_min}, {bracket_max}). "
+            "Consider checking input values or providing alternative parameters."
+        )
 
     res = root_scalar(rootme, args=(z_chk,), bracket=(bracket_min, bracket_max))
     if not res.converged:
@@ -62,6 +84,7 @@ def compute_efficiency(
 ) -> float:
     """Compute expected efficiency for the given checkpoint parameters."""
     import numpy as np
+    import warnings
 
     t_c = optimal_checkpoint_cadence(
         node_count,
@@ -74,6 +97,17 @@ def compute_efficiency(
         raise ValueError("T_c must be positive")
     if T_w <= 0:
         raise ValueError("T_w must be positive")
+    if t_c <= 0:
+        raise ValueError("t_c must be positive")
+    if t_c < 0.1:
+        warnings.warn(
+            (
+                "Computed optimal checkpoint cadence is very small ("
+                f"t_c={t_c:.4f} h); efficiency results may not be meaningful."
+            ),
+            UserWarning,
+            stacklevel=2,
+        )
 
     return np.exp(-(T_c + T_w) / t_c)
 
