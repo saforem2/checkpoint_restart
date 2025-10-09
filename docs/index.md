@@ -1,27 +1,42 @@
 # Check Mate
 
-`check_mate` bundles lightweight monitors and job-recovery helpers for large-scale simulations.
+`check_mate` bundles the monitoring utilities that power the Check Mate
+checkpoint/restart workflow. Use the package to:
 
-## Installation
+- keep an eye on checkpoints with `check-hang`
+- kill jobs that emit `NaN`/`Inf` tokens with `check-nan`
+- rebuild clean allocations with `check-mate get-healthy-nodes`
+- compute optimal checkpoint cadences via the Python API
+
+The documentation is organised into the following guides:
+
+| Guide | Summary |
+| --- | --- |
+| [Getting started](getting-started.md) | Install the package, verify the CLI, and run your first monitors. |
+| [CLI reference](cli.md) | Complete documentation for every bundled command with worked examples. |
+| [Python API](python-api.md) | Programmatic access to checkpoint cadence modelling helpers. |
+| [Workflow recipes](workflows.md) | Combine the tools into resilient batch scripts. |
+
+## Quick demo
+
+Once the package is installed you can confirm the CLI entry point and Python
+API in a few commands:
 
 ```bash
-pip install check-mate
+$ check-mate --version
+check-mate 0.1.0
 ```
-
-## Python usage
 
 ```python
-import check_mate as cm
-
-print(cm.__version__)
+>>> from check_mate import optimal_checkpointing as oc
+>>> cadence = oc.optimal_checkpoint_cadence(
+...     node_count=1024,
+...     node_memory=2.5e11,
+...     chkpt_bandwidth="DAOS-128",
+... )
+>>> f"{cadence:.3f} h"
+'6.951 h'
 ```
 
-## Command-line tools
-
-- `check-hang` — watch checkpoint files for activity and terminate a job if they stall.
-- `check-nan` — inspect log files for `NaN`/`Inf` tokens and trigger recovery hooks.
-- `get-healthy-nodes` — delegate to the bundled shell helper that prunes unresponsive nodes.
-- `check-mate-launcher` — export launcher-friendly environment variables and execute a command.
-- `check-mate-flush` — run the original flush helper used in PBS-style workflows.
-
-Refer to the [project README](https://github.com/argonne-lcf/checkpoint_restart#readme) for detailed usage examples.
+Head to the individual guides for detailed explanations, diagrams, and
+step-by-step walkthroughs.
