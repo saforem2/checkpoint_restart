@@ -59,7 +59,7 @@ include = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["check_mate"]
+packages = ["src/check_mate"]
 force-include = { "src/check_mate/resources" = "check_mate/resources" }
 
 [tool.hatch.build.targets.sdist]
