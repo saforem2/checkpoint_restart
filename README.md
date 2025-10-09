@@ -25,6 +25,23 @@ pip install -e .
 ```
 This will install the `check-hang`, `check-nan`, `get-healthy-nodes`, `check-mate-launcher`, and `check-mate-flush` command line tools into your environment.
 
+## Running the test suite
+
+The project ships with a comprehensive pytest suite that exercises both the numerical checkpoint
+optimizer and the command-line monitors. To run the tests locally:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -e .[dev]
+pip install pytest
+pytest
+```
+
+If you prefer not to use the optional development extras, ensure that `pytest`, `numpy`, and
+`scipy` are installed in your active environment before invoking the test command. The suite also
+includes filesystem-based checks, so running it from a writable working directory is recommended.
+
 ## Python usage
 
 ```python

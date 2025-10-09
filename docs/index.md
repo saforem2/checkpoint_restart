@@ -25,3 +25,15 @@ print(cm.__version__)
 - `check-mate-flush` — run the original flush helper used in PBS-style workflows.
 
 Refer to the [project README](https://github.com/argonne-lcf/checkpoint_restart#readme) for detailed usage examples.
+
+## Testing and verification
+
+We maintain a pytest-driven regression suite that validates the optimal checkpoint calculations and
+the file-monitoring utilities. After installing the project (and optional `dev` extras), run:
+
+```bash
+pytest
+```
+
+The tests exercise filesystem interactions, process termination hooks, and numerical solvers, so a
+local Python environment with `numpy`, `scipy`, and `pytest` is required.
