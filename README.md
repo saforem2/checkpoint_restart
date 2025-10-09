@@ -1,4 +1,6 @@
-# Check Mate – Checkpoint/Restart helpers for exascale computing
+# ✅ Check Mate
+
+> Checkpoint/Restart helpers for exascale computing
 
 Check Mate packages the monitoring utilities that the ALCF uses to keep
 large-scale simulations alive: lightweight log inspectors, hang detectors,
@@ -204,3 +206,4 @@ This project is distributed under the terms of the MIT License. See
 ## Contact
 
 For questions please contact Huihuo Zheng <huihuo.zheng@anl.gov>.
+
