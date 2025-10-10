@@ -10,6 +10,10 @@ theme:
     accent: amber
 nav:
   - Home: index.md
+  - Getting started: getting-started.md
+  - CLI reference: cli.md
+  - Python API: python-api.md
+  - Workflow recipes: workflows.md
 plugins:
   - search
 markdown_extensions:

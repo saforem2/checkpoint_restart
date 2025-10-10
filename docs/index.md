@@ -1,22 +1,31 @@
 # Check Mate
 
-`check_mate` bundles lightweight monitors and job-recovery helpers for large-scale simulations.
+`check_mate` bundles the monitoring utilities that power the Check Mate
+checkpoint/restart workflow. Use the package to:
 
-## Installation
+- keep an eye on checkpoints with `check-hang`
+- kill jobs that emit `NaN`/`Inf` tokens with `check-nan`
+- rebuild clean allocations with `check-mate get-healthy-nodes`
+- compute optimal checkpoint cadences via the Python API
+
+The documentation is organised into the following guides:
+
+| Guide | Summary |
+| --- | --- |
+| [Getting started](getting-started.md) | Install the package, verify the CLI, and run your first monitors. |
+| [CLI reference](cli.md) | Complete documentation for every bundled command with worked examples. |
+| [Python API](python-api.md) | Programmatic access to checkpoint cadence modelling helpers. |
+| [Workflow recipes](workflows.md) | Combine the tools into resilient batch scripts. |
+
+## Quick demo
+
+Once the package is installed you can confirm the CLI entry point and Python
+API in a few commands:
 
 ```bash
-pip install check-mate
+$ check-mate --version
+check-mate 0.1.0
 ```
-
-## Python usage
-
-```python
-import check_mate as cm
-
-print(cm.__version__)
-```
-
-## Command-line tools
 
 - `check-mate-hang` — watch checkpoint files for activity and terminate a job if they stall.
 - `check-mate-nan` — inspect log files for `NaN`/`Inf` tokens and trigger recovery hooks.
