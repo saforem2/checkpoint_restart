@@ -1,0 +1,120 @@
+"""Synthetic workload used by the packaged submission templates."""
+
+from __future__ import annotations
+
+import argparse
+import datetime as _dt
+import os
+import threading
+import time
+from pathlib import Path
+from typing import Sequence
+
+__all__ = ["main", "build_parser"]
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description="Simulate long-running jobs with hangs, NaNs, and failures.",
+    )
+    parser.add_argument("--compute", default=10, type=int, help="Seconds per iteration")
+    parser.add_argument("--niters", default=100, type=int, help="Total number of iterations")
+    parser.add_argument("--checkpoint", default="latest", help="Checkpoint file path")
+    parser.add_argument("--hang", default=None, type=int, help="Optional hang duration in seconds")
+    parser.add_argument("--fail", default=None, type=int, help="Seconds before forced failure")
+    parser.add_argument("--exit-code", default=1, type=int, help="Exit code to use on failure")
+    parser.add_argument(
+        "--nan-after",
+        default=None,
+        type=int,
+        help="Iteration offset after which NaN/Inf values are emitted",
+    )
+    parser.add_argument(
+        "--save-interval",
+        default=1,
+        type=int,
+        help="Iterations between checkpoint writes",
+    )
+    parser.add_argument("--output", default="output.log", help="Destination log file")
+    parser.add_argument(
+        "--checkpoint_time", default=0, type=int, help="Seconds spent writing each checkpoint"
+    )
+    return parser
+
+
+def _spawn_fail_thread(delay: int, exit_code: int, rank: int) -> threading.Thread:
+    def trigger_failure() -> None:
+        if rank == 0:
+            print(f"WARNING: Job will run {delay} seconds and fail", flush=True)
+        time.sleep(delay)
+        os._exit(exit_code)
+
+    thread = threading.Thread(target=trigger_failure, name="failure-timer", daemon=True)
+    thread.start()
+    return thread
+
+
+def _read_checkpoint(path: Path, rank: int) -> int:
+    if path.is_file():
+        checkpoint = int(path.read_text().splitlines()[0])
+        if rank == 0:
+            print(f"Reading checkpoint from {checkpoint}")
+        return checkpoint
+
+    if rank == 0:
+        print("Starting job from scratch")
+    return 0
+
+
+def _write_checkpoint(path: Path, iteration: int) -> None:
+    path.write_text(f"{iteration}\n")
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    parser = build_parser()
+    args = parser.parse_args(list(argv) if argv is not None else None)
+
+    rank = int(os.getenv("RANK", "0"))
+
+    failure_thread: threading.Thread | None = None
+    if args.fail and args.fail > 0:
+        failure_thread = _spawn_fail_thread(args.fail, args.exit_code, rank)
+
+    if rank == 0:
+        print(f"Job started at {_dt.datetime.now()}")
+
+    checkpoint_path = Path(args.checkpoint)
+    checkpoint = _read_checkpoint(checkpoint_path, rank)
+
+    if args.hang and args.hang > 0:
+        if rank == 0:
+            print(f"WARNING: job will hang for {args.hang} seconds")
+        time.sleep(args.hang)
+
+    with open(args.output, "w", encoding="utf-8") as fout:
+        for iteration in range(checkpoint, args.niters):
+            time.sleep(args.compute)
+            if (iteration - checkpoint + 1) % args.save_interval == 0:
+                time.sleep(args.checkpoint_time)
+                _write_checkpoint(checkpoint_path, iteration)
+
+            if rank == 0:
+                print(f"{iteration} iteration ...")
+                if args.nan_after is not None and (iteration - checkpoint) >= args.nan_after:
+                    fout.write(f"{iteration} iteration ..., result: NaN\n")
+                else:
+                    fout.write(f"{iteration} iteration ..., result: ...\n")
+                fout.flush()
+
+    if rank == 0:
+        print(f"Job finished at {_dt.datetime.now()}")
+
+    if failure_thread is not None:
+        failure_thread.join()
+        return args.exit_code
+
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -43,6 +43,38 @@ Verify your installation and inspect the shipped version:
 $ check-mate --version
 check-mate 0.1.0
 ```
+This will install the `check-mate-hang`, `check-mate-nan`, `get-healthy-nodes`, `check-mate-launcher`, and `check-mate-flush` command line tools into your environment.
+
+## Running the test suite
+
+The project ships with a comprehensive pytest suite that exercises both the numerical checkpoint
+optimizer and the command-line monitors. To run the tests locally:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -e .[dev]
+pytest
+```
+
+The optional `dev` extras include `pytest`, so no additional installation steps are required. If you
+prefer not to use those extras, ensure that `pytest`, `numpy`, and `scipy` are installed in your
+active environment before invoking the test command. The suite also includes filesystem-based
+checks, so running it from a writable working directory is recommended. For additional guidance,
+including troubleshooting tips, see the [Testing guide](docs/index.md#testing-and-verification).
+
+## Building distributable artifacts
+
+The project uses the [`uv`](https://docs.astral.sh/uv/) build backend. After installing `uv`
+(`pip install uv uv-build`), you can produce source and wheel distributions locally with:
+
+```bash
+uv build --wheel --sdist
+```
+
+Artifacts are written to the `dist/` directory. To test the wheel in a clean environment you can
+install it via `uv pip install dist/check_mate-<version>-py3-none-any.whl`. Publishing to an index
+is handled by `uv publish`, which reuses the same build backend and upload credentials.
 
 Import the package from Python and evaluate a checkpoint cadence for a
 1,024-node workload that writes 250 GB per node to the DAOS-128 storage tier:
@@ -94,14 +126,55 @@ Available commands:
   flush              Flush all check-mate caches.
 ```
 
-### Working examples
+## Useful Scripts
 
-#### Select a healthy node subset
+This repository includes several scripts to help manage and monitor jobs. After installation, `check-mate-hang`, `check-mate-nan`, and `get-healthy-nodes` will be available in your PATH.
 
-Create a tiny nodefile and ask `get-healthy-nodes` to retain a single
-responsive entry. The helper pings each node and writes the first *N*
-responsive hosts into the destination file:
+- `check-mate-hang`: Monitors files for updates and kills a job if it stops changing for longer than a specified timeout. This is useful for detecting hung processes.
+  ```bash
+  check-mate-hang --timeout 600 --check 10 --command "mpiexec python train.py"
+  ```
+  **Arguments:**
+  - `--timeout`: Seconds of inactivity after which the job will be killed (default: 300).
+  - `--check`: Seconds between file-activity checks (default: 5).
+  - `--kill-command`: Shell command to terminate the job (default: `pkill -u $USER mpiexec`).
+  - `--outputs`: Colon-separated list of output files to watch (default: `chkpt/latest`).
+  - `--grace`: Seconds to wait after sending the kill command before exiting (default: 10).
+  - `--dry-run`: If set, do not actually run the kill command—only log the action.
 
+- `check-mate-nan`: Monitors text output files for `NaN` or `Inf` values and terminates the job if they are found. This is useful for catching numerical stability issues.
+  ```bash
+  check-mate-nan --outputs "logs/*.out" --check 15 --kill-command "scancel $SLURM_JOB_ID"
+  ```
+  **Arguments:**
+  - `--outputs`: Glob pattern for files to watch.
+  - `--recursive`: Enable recursive globbing.
+  - `--check`: Polling interval in seconds (default: 15).
+  - `--timeout`: Exit with code 0 if no NaN/Inf found after this many seconds (0 disables timeout).
+  - `--include-inf`: Also treat 'inf' tokens as fatal.
+  - `--pid`: If set, send a signal to this PID on detection.
+  - `--signal`: Signal to send when using `--pid` (default: `TERM`).
+  - `--grace`: Seconds to wait before escalating to `SIGKILL` if `--pid` is used (default: 15).
+  - `--kill-command`: Arbitrary shell command to run on detection.
+  - `--dry-run`: Detect and report but do not kill or run commands.
+  - `--verbose`: Print verbose progress messages.
+
+- `get-healthy-nodes`: Selects a subset of healthy nodes from a larger allocation, writing them to a new nodefile. This is key to the restart mechanism.
+  ```bash
+  get-healthy-nodes NODEFILE NUM_NODES_TO_SELECT NEW_NODEFILE
+  ```
+
+- `check-mate-launcher`: Export launch-friendly environment variables derived from common PBS/PMI metadata before executing a command.
+  ```bash
+  check-mate-launcher python test_pyjob.py --hang 30
+  ```
+- `check-mate-flush`: Invoke the bundled flush helper to clean up processes on allocated nodes (requires `clush`).
+  ```bash
+  PBS_NODEFILE=NODEFILE check-mate-flush
+  ```
+
+## Simulation of job execution: hang, fail, success
+The test_pyjob.py script allows you to simulate various job behaviors:
 ```bash
 $ printf '127.0.0.1\n127.0.0.1\n' > nodes.txt
 $ check-mate get-healthy-nodes nodes.txt 1 selected.txt
@@ -184,6 +257,22 @@ python test_pyjob.py --fail 120 --checkpoint ./chkpt --niters 1000
 
 The `examples/` directory contains archived run logs for failed, hanging,
 successful, and NaN-producing workloads.
+
+## Packaged simulation examples
+Reusable PBS submission templates ship with the library and can be accessed as
+Python modules. Each example prints its `qsub.sc` template to `stdout` or writes
+it to disk when paired with `--output`:
+
+```bash
+# Preview the failing job template
+python -m check_mate.examples.fail
+
+# Persist the NaN recovery template to a custom location
+python -m check_mate.examples.nan --output ~/nan.sc
+```
+
+The available examples mirror the historical directories and cover failure,
+hang detection, NaN recovery, and successful completion scenarios.
 
 ## Documentation
 

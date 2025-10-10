@@ -1,6 +1,6 @@
 [build-system]
-requires = ["hatchling>=1.18"]
-build-backend = "hatchling.build"
+requires = ["uv_build>=0.9.1,<0.10.0"]
+build-backend = "uv_build"
 
 [project]
 name = "check-mate"
@@ -11,7 +11,7 @@ requires-python = ">=3.9"
 authors = [
   { name = "Huihuo Zheng", email = "huihuo.zheng@anl.gov" },
 ]
-license = { text = "MIT" }
+license = { file = "LICENSE" }
 keywords = ["hpc", "checkpoint", "monitoring", "exascale"]
 classifiers = [
   "Development Status :: 3 - Alpha",
@@ -35,9 +35,9 @@ Documentation = "https://example.com/check-mate"
 Source = "https://github.com/argonne-lcf/checkpoint_restart"
 
 [project.scripts]
-check-hang = "check_mate.check_hang:main"
-check-nan = "check_mate.check_nan:main"
 check-mate = "check_mate.cli:main"
+check-mate-hang = "check_mate.check_hang:main"
+check-mate-nan = "check_mate.check_nan:main"
 
 [project.optional-dependencies]
 docs = [
@@ -45,29 +45,9 @@ docs = [
   "mkdocs-material>=9.5",
 ]
 dev = [
+  "pytest>=7.4",
   "pre-commit>=3.6",
   "ruff>=0.4",
-]
-
-[tool.hatch.build]
-include = [
-  "src/check_mate",
-  "README.md",
-  "LICENSE",
-  "mkdocs.yml",
-  "docs",
-]
-
-[tool.hatch.build.targets.wheel]
-packages = ["src/check_mate"]
-force-include = { "src/check_mate/resources" = "check_mate/resources" }
-
-[tool.hatch.build.targets.sdist]
-include = [
-  "src/check_mate",
-  "README.md",
-  "mkdocs.yml",
-  "docs",
 ]
 
 [tool.ruff]

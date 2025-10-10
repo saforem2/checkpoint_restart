@@ -29,10 +29,10 @@ do
     export PBS_NODEFILE=pbs_nodefile$RUN
 
     # constantly check the job and kill the job if it hangs for 300 seconds
-    check_hang.py --timeout 300 --outputs $PBS_JOBNAME.o$JOBID:$PBS_JOBNAME.e$JOBID:output.log --kill-command "pkill -u $USER mpiexec" >> check_hang.r$JOBID &
-    check_nan.py --check 1 --outputs $PBS_JOBNAME.o$JOBID:$PBS_JOBNAME.e$JOBID:output.log --kill-command "pkill -u $USER mpiexec" >> check_nan.r$JOBID &
+    check-mate-hang --timeout 300 --outputs $PBS_JOBNAME.o$JOBID:$PBS_JOBNAME.e$JOBID:output.log --kill-command "pkill -u $USER mpiexec" >> check_hang.r$JOBID &
+    check-mate-nan --check 1 --outputs $PBS_JOBNAME.o$JOBID:$PBS_JOBNAME.e$JOBID:output.log --kill-command "pkill -u $USER mpiexec" >> check_nan.r$JOBID &
     # run the actual job, in this case, the job will run for 200 seconds and fail (finished about 9 iterations each time)
-    mpiexec -np $((JOBSIZE*12)) --ppn 12 launcher.sh python ./test_pyjob.py --compute 5 --niters 100 --output output.log --nan-after 10
+    mpiexec -np $((JOBSIZE*12)) --ppn 12 launcher.sh python -m check_mate.examples.test_pyjob --compute 5 --niters 100 --output output.log --nan-after 10
 
     EXIT_CODE=$?
     # Check the job status
