@@ -1,6 +1,6 @@
 # Command line reference
 
-Check Mate ships both standalone executables (`check-hang`, `check-nan`) and a
+Check Mate ships both standalone executables (`check-mate-hang`, `check-mate-nan`) and a
 multi-tool dispatcher (`check-mate`). This page documents each entry point and
 provides real output captures so you know what to expect.
 
@@ -80,19 +80,22 @@ Hello from launcher
 
 ## Standalone monitors
 
-### `check-hang`
+### `check-mate-hang`
 
 - **Purpose:** Watch checkpoint files for stalled updates.
-- **Usage:** `check-hang --outputs FILE[:FILE...] [options]`
+- **Usage:** `check-mate-hang --outputs FILE[:FILE...] [options]`
 - **Key options:**
   - `--timeout` – seconds of inactivity before declaring a hang (default 300)
   - `--check` – polling interval in seconds (default 5)
+  - `--kill-command` – shell command to terminate the job (default `pkill -u $USER mpiexec`)
+  - `--outputs` – colon-separated list of files to monitor (default `chkpt/latest`)
+  - `--grace` – seconds to wait after sending the kill command before exiting (default 10)
   - `--dry-run` – report the issue without killing anything
 
 Dry-run against a missing file:
 
 ```bash
-$ check-hang --timeout 3 --check 1 --outputs temp.chkpt --dry-run
+$ check-mate-hang --timeout 3 --check 1 --outputs temp.chkpt --dry-run
 [2025-10-09 15:46:04] Job monitor started
 Watching: temp.chkpt
 Timeout: 3s | Check interval: 1s
@@ -106,14 +109,22 @@ No updates for 1.0 seconds
 [2025-10-09 15:46:07] Monitor exiting after inactivity timeout.
 ```
 
-### `check-nan`
+### `check-mate-nan`
 
 - **Purpose:** Stream log files and terminate if `NaN`/`Inf` tokens appear.
-- **Usage:** `check-nan --outputs PATTERN [options]`
+- **Usage:** `check-mate-nan --outputs PATTERN [options]`
 - **Key options:**
+  - `--outputs` – glob pattern for files to watch
+  - `--recursive` – enable recursive globbing
+  - `--check` – polling interval in seconds (default 15)
+  - `--timeout` – exit cleanly if no match is found within the given seconds (0 disables timeout)
   - `--include-inf` – treat `inf` tokens as fatal
+  - `--pid` – send a signal to a specific PID when a match is found
+  - `--signal` – signal to send alongside `--pid` (default `TERM`)
+  - `--grace` – seconds to wait before escalating to `SIGKILL` when using `--pid`
   - `--kill-command` – shell snippet to run on detection
   - `--dry-run` – suppress the kill action for testing
+  - `--verbose` – print verbose progress messages
 
 Run the detector against a synthetic log:
 
@@ -122,7 +133,7 @@ $ cat <<'LOG' > demo.log
 step=1 loss=1.23
 step=2 loss=nan
 LOG
-$ check-nan --outputs demo.log --check 1 --timeout 0 --dry-run
+$ check-mate-nan --outputs demo.log --check 1 --timeout 0 --dry-run
 [2025-10-09 15:45:18] Monitoring for NaN in: demo.log
 [2025-10-09 15:45:18] Detected NaN in demo.log.
 [DRY-RUN] Would terminate job (skipping actual kill).

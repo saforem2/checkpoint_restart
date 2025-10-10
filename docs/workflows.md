@@ -5,8 +5,8 @@ scripts and ad-hoc recovery loops.
 
 ## PBS/PMI style launcher with monitors
 
-The following shell fragment shows how you might wire `check-hang` and
-`check-nan` around an MPI job while letting the `check-mate` dispatcher seed
+The following shell fragment shows how you might wire `check-mate-hang` and
+`check-mate-nan` around an MPI job while letting the `check-mate` dispatcher seed
 rank metadata. The monitors run in the background and exit automatically once a
 problem is detected.
 
@@ -21,9 +21,9 @@ export PALS_LOCAL_RANKID=${PALS_LOCAL_RANKID:-0}
 export PALS_RANKID=${PALS_RANKID:-0}
 
 # Launch monitors in dry-run mode for local testing
-check-hang --outputs demo.chkpt --timeout 10 --check 2 --dry-run &
+check-mate-hang --outputs demo.chkpt --timeout 10 --check 2 --dry-run &
 HANG_PID=$!
-check-nan --outputs output.log --timeout 15 --dry-run &
+check-mate-nan --outputs output.log --timeout 15 --dry-run &
 NAN_PID=$!
 
 # Your application (replace with mpiexec, srun, etc.)
@@ -80,5 +80,5 @@ makes sense of the overall runtime:
 ```
 
 Feed the calculated cadence into your job script to pick the timeout value for
-`check-hang` and the polling interval for `check-nan` so the monitors align with
+`check-mate-hang` and the polling interval for `check-mate-nan` so the monitors align with
 realistic checkpoint intervals.
