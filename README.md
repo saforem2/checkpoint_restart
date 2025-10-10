@@ -59,8 +59,8 @@ pytest
 ```
 
 The optional `dev` extras include `pytest`, so no additional installation steps are required. If you
-prefer not to use those extras, ensure that `pytest`, `numpy`, and `scipy` are installed in your
-active environment before invoking the test command. The suite also includes filesystem-based
+prefer not to use those extras, ensure that `pytest` is installed in your active environment before
+invoking the test command. The suite also includes filesystem-based
 checks, so running it from a writable working directory is recommended. The
 [Testing and verification](docs/index.md#testing-and-verification) notes in the documentation repeat
 these steps and include troubleshooting tips.

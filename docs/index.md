@@ -63,7 +63,6 @@ pytest
 ```
 
 The optional `dev` extras provide `pytest`, so no additional packages are required. When installing
-without extras, ensure `pytest`, `numpy`, and `scipy` are available in the active environment before
-running the suite. Because several tests exercise filesystem interactions, execute the commands from
-a writable working directory. Consult the README link above for troubleshooting tips and additional
-context.
+without extras, ensure `pytest` is available in the active environment before running the suite.
+Because several tests exercise filesystem interactions, execute the commands from a writable working
+directory. Consult the README link above for troubleshooting tips and additional context.
