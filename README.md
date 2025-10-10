@@ -23,7 +23,38 @@ git clone https://github.com/argonne-lcf/checkpoint_restart
 cd checkpoint_restart
 pip install -e .
 ```
-This will install the `check-hang`, `check-nan`, `get-healthy-nodes`, `check-mate-launcher`, and `check-mate-flush` command line tools into your environment.
+This will install the `check-mate-hang`, `check-mate-nan`, `get-healthy-nodes`, `check-mate-launcher`, and `check-mate-flush` command line tools into your environment.
+
+## Running the test suite
+
+The project ships with a comprehensive pytest suite that exercises both the numerical checkpoint
+optimizer and the command-line monitors. To run the tests locally:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -e .[dev]
+pytest
+```
+
+The optional `dev` extras include `pytest`, so no additional installation steps are required. If you
+prefer not to use those extras, ensure that `pytest`, `numpy`, and `scipy` are installed in your
+active environment before invoking the test command. The suite also includes filesystem-based
+checks, so running it from a writable working directory is recommended. For additional guidance,
+including troubleshooting tips, see the [Testing guide](docs/index.md#testing-and-verification).
+
+## Building distributable artifacts
+
+The project uses the [`uv`](https://docs.astral.sh/uv/) build backend. After installing `uv`
+(`pip install uv uv-build`), you can produce source and wheel distributions locally with:
+
+```bash
+uv build --wheel --sdist
+```
+
+Artifacts are written to the `dist/` directory. To test the wheel in a clean environment you can
+install it via `uv pip install dist/check_mate-<version>-py3-none-any.whl`. Publishing to an index
+is handled by `uv publish`, which reuses the same build backend and upload credentials.
 
 ## Python usage
 
@@ -35,11 +66,11 @@ print(cm.__version__)
 
 ## Useful Scripts
 
-This repository includes several scripts to help manage and monitor jobs. After installation, `check-hang`, `check-nan`, and `get-healthy-nodes` will be available in your PATH.
+This repository includes several scripts to help manage and monitor jobs. After installation, `check-mate-hang`, `check-mate-nan`, and `get-healthy-nodes` will be available in your PATH.
 
-- `check-hang`: Monitors files for updates and kills a job if it stops changing for longer than a specified timeout. This is useful for detecting hung processes.
+- `check-mate-hang`: Monitors files for updates and kills a job if it stops changing for longer than a specified timeout. This is useful for detecting hung processes.
   ```bash
-  check-hang --timeout 600 --check 10 --command "mpiexec python train.py"
+  check-mate-hang --timeout 600 --check 10 --command "mpiexec python train.py"
   ```
   **Arguments:**
   - `--timeout`: Seconds of inactivity after which the job will be killed (default: 300).
@@ -49,9 +80,9 @@ This repository includes several scripts to help manage and monitor jobs. After 
   - `--grace`: Seconds to wait after sending the kill command before exiting (default: 10).
   - `--dry-run`: If set, do not actually run the kill command—only log the action.
 
-- `check-nan`: Monitors text output files for `NaN` or `Inf` values and terminates the job if they are found. This is useful for catching numerical stability issues.
+- `check-mate-nan`: Monitors text output files for `NaN` or `Inf` values and terminates the job if they are found. This is useful for catching numerical stability issues.
   ```bash
-  check-nan --outputs "logs/*.out" --check 15 --kill-command "scancel $SLURM_JOB_ID"
+  check-mate-nan --outputs "logs/*.out" --check 15 --kill-command "scancel $SLURM_JOB_ID"
   ```
   **Arguments:**
   - `--outputs`: Glob pattern for files to watch.
@@ -100,11 +131,21 @@ python test_pyjob.py --fail 120 --checkpoint ./chkpt --niters 1000
 - [qsub_multi_mpiexec.sc](./qsub_multi_mpiexec.sc)
   submission script doing continual trials of mpiexec until success or timeout
 
-## Various simulation examples
-- [fail/](./fail): job failed after 100 seconds, restart
-- [hang/](./hang): job hang, kill and restart
-- [success/](./success): job run seccessfully
-- [nan/](./nan): NaN after a few iterations, restart
+## Packaged simulation examples
+Reusable PBS submission templates ship with the library and can be accessed as
+Python modules. Each example prints its `qsub.sc` template to `stdout` or writes
+it to disk when paired with `--output`:
+
+```bash
+# Preview the failing job template
+python -m check_mate.examples.fail
+
+# Persist the NaN recovery template to a custom location
+python -m check_mate.examples.nan --output ~/nan.sc
+```
+
+The available examples mirror the historical directories and cover failure,
+hang detection, NaN recovery, and successful completion scenarios.
 
 ## Checkpoint interval optimization utility
 - [optimal_checkpointing.py](./optimal_checkpointing.py)
