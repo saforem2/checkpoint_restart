@@ -24,10 +24,7 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
   "Topic :: System :: Monitoring",
 ]
-dependencies = [
-  "numpy>=1.24",
-  "scipy>=1.9",
-]
+dependencies = []
 
 [project.urls]
 Homepage = "https://github.com/argonne-lcf/checkpoint_restart"

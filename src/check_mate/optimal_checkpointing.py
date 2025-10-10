@@ -2,10 +2,8 @@
 
 from __future__ import annotations
 
+import math
 import warnings
-
-import numpy as np
-from scipy.optimize import root_scalar
 
 _MTBAI_TO_R0_FACTOR = 10624
 
@@ -23,6 +21,43 @@ def _resolve_bandwidth(value: float | int | str) -> float:
     if isinstance(value, (float, int)):
         return float(value)
     raise TypeError('chkpt_bandwidth must be float, "DAOS-128", or "LUSTRE"')
+
+
+def _solve_root(bracket: tuple[float, float], z_chk: float) -> float:
+    lo, hi = bracket
+    if lo >= hi:
+        raise ValueError("Invalid bracket: lower bound must be less than upper bound")
+
+    def rootme(z_c: float) -> float:
+        return math.exp(-z_c - z_chk) - (1 - z_c)
+
+    f_lo = rootme(lo)
+    f_hi = rootme(hi)
+
+    if f_lo == 0.0:
+        return lo
+    if f_hi == 0.0:
+        return hi
+    if f_lo * f_hi > 0:
+        raise RuntimeError(
+            "Could not bracket root for rootme(z_c, z_chk) "
+            f"with z_chk={z_chk} and bracket={bracket}."
+        )
+
+    for _ in range(256):
+        mid = 0.5 * (lo + hi)
+        f_mid = rootme(mid)
+        if abs(f_mid) <= 1e-12 or hi - lo <= 1e-12:
+            return mid
+        if f_mid * f_lo > 0:
+            lo, f_lo = mid, f_mid
+        else:
+            hi, f_hi = mid, f_mid
+
+    raise RuntimeError(
+        "Bisection did not converge for rootme(z_c, z_chk) "
+        f"with z_chk={z_chk} and bracket={bracket}."
+    )
 
 
 def optimal_checkpoint_cadence(
@@ -46,35 +81,7 @@ def optimal_checkpoint_cadence(
     u_chk = tau_c * node_count**2
     z_chk = R_0 * u_chk
 
-    def rootme(z_c: float, z_chk_val: float) -> float:
-        return np.exp(-z_c - z_chk_val) - (1 - z_c)
-
-    bracket = (0.0, max(1.5 * z_chk, 1.0))
-    try:
-        res = root_scalar(
-            rootme,
-            args=(z_chk,),
-            bracket=bracket,
-            method="brentq",
-        )
-    except ValueError as exc:  # pragma: no cover - rare numerical failures
-        raise RuntimeError(
-            "Could not bracket root for rootme(z_c, z_chk) "
-            f"with z_chk={z_chk} and bracket={bracket}."
-        ) from exc
-
-    if not res.converged:
-        f_bracket_min = rootme(bracket[0], z_chk)
-        f_bracket_max = rootme(bracket[1], z_chk)
-        n_iter = getattr(res, "iterations", "N/A")
-        raise RuntimeError(
-            "Root-find convergence failure for bracket=("
-            f"{bracket[0]}, {bracket[1]}). "
-            f"Function values: f({bracket[0]})={f_bracket_min}, "
-            f"f({bracket[1]})={f_bracket_max}. Iterations: {n_iter}."
-        )
-
-    z_c = res.root
+    z_c = _solve_root((0.0, max(1.5 * z_chk, 1.0)), z_chk)
     u_c = z_c / R_0
     return u_c / node_count
 
@@ -110,7 +117,7 @@ def compute_efficiency(
             stacklevel=2,
         )
 
-    return np.exp(-(T_c + T_w) / t_c)
+    return math.exp(-(T_c + T_w) / t_c)
 
 
 __all__ = [

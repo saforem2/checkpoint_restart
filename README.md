@@ -6,12 +6,13 @@ Check Mate packages the monitoring utilities that the ALCF uses to keep
 large-scale simulations alive: lightweight log inspectors, hang detectors,
 and wrappers around the original shell tooling for rebuilding a healthy node
 allocation. Install the Python package and you immediately gain access to
-both the Python APIs and the bundled command line entry points.
+both the Python APIs and the bundled command line entry points that are
+documented under [`docs/`](docs/index.md).
 
 ## Features
 
-- 🔍 **Runtime monitors** – `check-hang` watches checkpoint files for stalled
-  updates while `check-nan` searches log files for `NaN`/`Inf` tokens.
+- 🔍 **Runtime monitors** – `check-mate-hang` watches checkpoint files for stalled
+  updates while `check-mate-nan` searches log files for `NaN`/`Inf` tokens.
 - 🧠 **Checkpoint modelling** – the `check_mate.optimal_checkpointing`
   module computes optimal checkpoint cadences and expected efficiency.
 - 🧰 **Bundled shell helpers** – `check-mate` proxies the original
@@ -28,7 +29,7 @@ pip install check-mate
 Optional extras:
 
 ```bash
-# Documentation build dependencies
+# Documentation build dependencies (MkDocs + theme)
 pip install check-mate[docs]
 
 # Development linting hooks (ruff + pre-commit)
@@ -43,7 +44,7 @@ Verify your installation and inspect the shipped version:
 $ check-mate --version
 check-mate 0.1.0
 ```
-This will install the `check-mate-hang`, `check-mate-nan`, `get-healthy-nodes`, `check-mate-launcher`, and `check-mate-flush` command line tools into your environment.
+The wheel installs the `check-mate`, `check-mate-hang`, `check-mate-nan`, `check-mate get-healthy-nodes`, `check-mate launcher`, and `check-mate flush` entry points that are covered in the [CLI reference](docs/cli.md).
 
 ## Running the test suite
 
@@ -58,10 +59,11 @@ pytest
 ```
 
 The optional `dev` extras include `pytest`, so no additional installation steps are required. If you
-prefer not to use those extras, ensure that `pytest`, `numpy`, and `scipy` are installed in your
-active environment before invoking the test command. The suite also includes filesystem-based
-checks, so running it from a writable working directory is recommended. For additional guidance,
-including troubleshooting tips, see the [Testing guide](docs/index.md#testing-and-verification).
+prefer not to use those extras, ensure that `pytest` is installed in your active environment before
+invoking the test command. The suite also includes filesystem-based
+checks, so running it from a writable working directory is recommended. The
+[Testing and verification](docs/index.md#testing-and-verification) notes in the documentation repeat
+these steps and include troubleshooting tips.
 
 ## Building distributable artifacts
 
@@ -128,49 +130,49 @@ Available commands:
 
 ## Useful Scripts
 
-This repository includes several scripts to help manage and monitor jobs. After installation, `check-mate-hang`, `check-mate-nan`, and `get-healthy-nodes` will be available in your PATH.
+This repository includes several scripts to help manage and monitor jobs. After installation, `check-mate-hang`, `check-mate-nan`, and `check-mate get-healthy-nodes` will be available in your PATH.
 
 - `check-mate-hang`: Monitors files for updates and kills a job if it stops changing for longer than a specified timeout. This is useful for detecting hung processes.
   ```bash
-  check-mate-hang --timeout 600 --check 10 --command "mpiexec python train.py"
+  check-mate-hang --timeout 600 --check 10 --outputs chkpt/latest --kill-command "scancel $SLURM_JOB_ID"
   ```
-  **Arguments:**
-  - `--timeout`: Seconds of inactivity after which the job will be killed (default: 300).
-  - `--check`: Seconds between file-activity checks (default: 5).
-  - `--kill-command`: Shell command to terminate the job (default: `pkill -u $USER mpiexec`).
-  - `--outputs`: Colon-separated list of output files to watch (default: `chkpt/latest`).
-  - `--grace`: Seconds to wait after sending the kill command before exiting (default: 10).
-  - `--dry-run`: If set, do not actually run the kill command—only log the action.
+  **Key options:**
+  - `--timeout` – seconds of inactivity before declaring a hang (default 300)
+  - `--check` – polling interval in seconds (default 5)
+  - `--kill-command` – shell command to terminate the job (default `pkill -u $USER mpiexec`)
+  - `--outputs` – colon-separated list of files to monitor (default `chkpt/latest`)
+  - `--grace` – seconds to wait after sending the kill command before exiting (default 10)
+  - `--dry-run` – report the issue without killing anything
 
 - `check-mate-nan`: Monitors text output files for `NaN` or `Inf` values and terminates the job if they are found. This is useful for catching numerical stability issues.
   ```bash
   check-mate-nan --outputs "logs/*.out" --check 15 --kill-command "scancel $SLURM_JOB_ID"
   ```
-  **Arguments:**
-  - `--outputs`: Glob pattern for files to watch.
-  - `--recursive`: Enable recursive globbing.
-  - `--check`: Polling interval in seconds (default: 15).
-  - `--timeout`: Exit with code 0 if no NaN/Inf found after this many seconds (0 disables timeout).
-  - `--include-inf`: Also treat 'inf' tokens as fatal.
-  - `--pid`: If set, send a signal to this PID on detection.
-  - `--signal`: Signal to send when using `--pid` (default: `TERM`).
-  - `--grace`: Seconds to wait before escalating to `SIGKILL` if `--pid` is used (default: 15).
-  - `--kill-command`: Arbitrary shell command to run on detection.
-  - `--dry-run`: Detect and report but do not kill or run commands.
-  - `--verbose`: Print verbose progress messages.
+  **Key options:**
+  - `--outputs` – glob pattern for files to watch
+  - `--recursive` – enable recursive globbing
+  - `--check` – polling interval in seconds (default 15)
+  - `--timeout` – exit cleanly if no match is found within the given seconds (0 disables timeout)
+  - `--include-inf` – treat `inf` tokens as fatal
+  - `--pid` – send a signal to a specific PID when a match is found
+  - `--signal` – signal to send alongside `--pid` (default `TERM`)
+  - `--grace` – seconds to wait before escalating to `SIGKILL` when using `--pid`
+  - `--kill-command` – shell snippet to run on detection
+  - `--dry-run` – suppress the kill action for testing
+  - `--verbose` – print verbose progress messages
 
-- `get-healthy-nodes`: Selects a subset of healthy nodes from a larger allocation, writing them to a new nodefile. This is key to the restart mechanism.
+- `check-mate get-healthy-nodes`: Selects a subset of healthy nodes from a larger allocation, writing them to a new nodefile. This is key to the restart mechanism.
   ```bash
-  get-healthy-nodes NODEFILE NUM_NODES_TO_SELECT NEW_NODEFILE
+  check-mate get-healthy-nodes NODEFILE NUM_NODES_TO_SELECT NEW_NODEFILE
   ```
 
-- `check-mate-launcher`: Export launch-friendly environment variables derived from common PBS/PMI metadata before executing a command.
+- `check-mate launcher`: Export launch-friendly environment variables derived from common PBS/PMI metadata before executing a command.
   ```bash
-  check-mate-launcher python test_pyjob.py --hang 30
+  check-mate launcher -- python test_pyjob.py --hang 30
   ```
-- `check-mate-flush`: Invoke the bundled flush helper to clean up processes on allocated nodes (requires `clush`).
+- `check-mate flush`: Invoke the bundled flush helper to clean up processes on allocated nodes (requires `clush`).
   ```bash
-  PBS_NODEFILE=NODEFILE check-mate-flush
+  PBS_NODEFILE=NODEFILE check-mate flush
   ```
 
 ## Simulation of job execution: hang, fail, success
@@ -206,7 +208,7 @@ Run the hang detector in dry-run mode against a non-existent checkpoint file
 so the inactivity timer fires quickly:
 
 ```bash
-$ check-hang --timeout 3 --check 1 --outputs temp.chkpt --dry-run
+$ check-mate-hang --timeout 3 --check 1 --outputs temp.chkpt --dry-run
 [2025-10-09 15:46:04] Job monitor started
 Watching: temp.chkpt
 Timeout: 3s | Check interval: 1s
@@ -222,7 +224,7 @@ No updates for 1.0 seconds
 
 #### Catch NaNs in logs
 
-Point `check-nan` at an artificial log that contains a `nan` token. The
+Point `check-mate-nan` at an artificial log that contains a `nan` token. The
 `--dry-run` flag avoids killing anything while still demonstrating the
 recovery hook:
 
@@ -231,7 +233,7 @@ $ cat <<'LOG' > demo.log
 step=1 loss=1.23
 step=2 loss=nan
 LOG
-$ check-nan --outputs demo.log --check 1 --timeout 0 --dry-run
+$ check-mate-nan --outputs demo.log --check 1 --timeout 0 --dry-run
 [2025-10-09 15:45:18] Monitoring for NaN in: demo.log
 [2025-10-09 15:45:18] Detected NaN in demo.log.
 [DRY-RUN] Would terminate job (skipping actual kill).
@@ -242,9 +244,9 @@ $ check-nan --outputs demo.log --check 1 --timeout 0 --dry-run
 - `check-mate flush` forwards directly to the original flush helper. Set the
   `PBS_NODEFILE` environment variable so the script knows which nodes to
   operate on.
-- The legacy standalone executables (`check-hang`, `check-nan`) remain
-  available for backwards compatibility; they share the same code as the
-  examples above.
+- Dedicated executables (`check-mate-hang`, `check-mate-nan`) are packaged
+  alongside the dispatcher for quick access; they share the same code paths as
+  the subcommands highlighted in the [CLI reference](docs/cli.md).
 
 ## Simulation harness
 

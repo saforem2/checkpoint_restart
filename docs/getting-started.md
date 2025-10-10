@@ -55,11 +55,11 @@ Available commands:
 
 ### Detect a stalled checkpoint
 
-Invoke `check-hang` in dry-run mode against a non-existent checkpoint file so
+Invoke `check-mate-hang` in dry-run mode against a non-existent checkpoint file so
 the inactivity timer expires almost immediately:
 
 ```bash
-$ check-hang --timeout 3 --check 1 --outputs temp.chkpt --dry-run
+$ check-mate-hang --timeout 3 --check 1 --outputs temp.chkpt --dry-run
 [2025-10-09 15:46:04] Job monitor started
 Watching: temp.chkpt
 Timeout: 3s | Check interval: 1s
@@ -83,7 +83,7 @@ $ cat <<'LOG' > demo.log
 step=1 loss=1.23
 step=2 loss=nan
 LOG
-$ check-nan --outputs demo.log --check 1 --timeout 0 --dry-run
+$ check-mate-nan --outputs demo.log --check 1 --timeout 0 --dry-run
 [2025-10-09 15:45:18] Monitoring for NaN in: demo.log
 [2025-10-09 15:45:18] Detected NaN in demo.log.
 [DRY-RUN] Would terminate job (skipping actual kill).
@@ -92,9 +92,9 @@ $ rm demo.log
 
 ### Rebuild a healthy nodefile
 
-The `get-healthy-nodes` helper pings each node listed in the input file and
-writes the first *N* responsive hosts to the destination file. The example below
-uses two loopback entries so the script succeeds instantly:
+The `check-mate get-healthy-nodes` helper pings each node listed in the input
+file and writes the first *N* responsive hosts to the destination file. The
+example below uses two loopback entries so the script succeeds instantly:
 
 ```bash
 $ printf '127.0.0.1\n127.0.0.1\n' > nodes.txt
