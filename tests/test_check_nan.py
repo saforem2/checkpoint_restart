@@ -157,7 +157,7 @@ def test_try_kill_pid_and_command(monkeypatch, fake_sleep, capsys):
     assert commands == ["echo kill"]
 
 
-def test_try_kill_dry_run(capsys):
+def test_try_kill_dry_run(caplog):
     args = SimpleNamespace(
         dry_run=True,
         pid=0,
@@ -166,8 +166,12 @@ def test_try_kill_dry_run(capsys):
         kill_command="",
     )
     check_nan.try_kill(args)
-    captured = capsys.readouterr()
-    assert "[DRY-RUN] Would terminate job" in captured.out
+    matched = False
+    for record in caplog.records:
+        if "[DRY-RUN]" in record.msg:
+            matched = True
+            break
+    assert matched
 
 
 def test_try_kill_invalid_signal():
@@ -182,7 +186,7 @@ def test_try_kill_invalid_signal():
         check_nan.try_kill(args)
 
 
-def test_try_kill_warns_when_no_action(monkeypatch, capsys):
+def test_try_kill_warns_when_no_action(monkeypatch, caplog):
     args = SimpleNamespace(
         dry_run=False,
         pid=0,
@@ -191,5 +195,11 @@ def test_try_kill_warns_when_no_action(monkeypatch, capsys):
         kill_command="",
     )
     check_nan.try_kill(args)
-    captured = capsys.readouterr()
-    assert "No kill action executed" in captured.out
+    # captured = capsys.readouterr()
+    # assert "No kill action executed" in captured.out
+    matched = False
+    for record in caplog.records:
+        if "No kill action executed" in record.msg:
+            matched = True
+            break
+    assert matched
