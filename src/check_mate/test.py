@@ -20,8 +20,9 @@ try:
     logger = ezpz.get_logger(__name__)
 except Exception:
     import logging
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(format='[%(asctime)s][%(levelname)s][%(name)s] - %(message)s')
     logger = logging.getLogger(__name__)
+    logger.setLevel("INFO")
 
 
 def build_parser() -> argparse.ArgumentParser:
