@@ -10,6 +10,7 @@ readme = "README.md"
 requires-python = ">=3.9"
 authors = [
   { name = "Huihuo Zheng", email = "huihuo.zheng@anl.gov" },
+  { name = "Sam Foreman", email = "foremans@anl.gov" },
 ]
 license = { file = "LICENSE" }
 keywords = ["hpc", "checkpoint", "monitoring", "exascale"]
@@ -42,15 +43,17 @@ docs = [
   "mkdocs-material>=9.5",
 ]
 dev = [
-  "pytest>=7.4",
-  "pre-commit>=3.6",
-  "ruff>=0.4",
+    "pytest>=7.4",
+    "pre-commit>=3.6",
+    "ruff>=0.14.0",
+    "ty>=0.0.1a22",
+    "pyright>=1.1.406",
 ]
 
 [tool.ruff]
-line-length = 100
+line-length = 80
 extend-exclude = ["docs"]
-target-version = "py39"
+target-version = "py310"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "B", "I"]
