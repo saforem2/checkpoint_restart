@@ -1,9 +1,10 @@
 #!/bin/bash
 #PBS -l walltime=0:20:00
 #PBS -q prod
-#PBS -N test_checkpoint_restart
+#PBS -N test_nan
 #PBS -l select=4
 #PBS -A datascience
+#PBS -l filesystems=home:flare
 
 MAX_TRIALS=10
 source /flare/Aurora_deployment/AuroraGPT/soft/checkpoint_restart/conda.sh
@@ -29,21 +30,27 @@ do
 
     # constantly check the job and kill the job if it hangs for 300 seconds
     check-mate-hang --timeout 300 --outputs $PBS_JOBNAME.o$JOBID:$PBS_JOBNAME.e$JOBID:output.log --kill-command "pkill -u $USER mpiexec" >> check_hang.r$JOBID &
-
+    check-mate-nan --check 1 --outputs $PBS_JOBNAME.o$JOBID:$PBS_JOBNAME.e$JOBID:output.log --kill-command "pkill -u $USER mpiexec" >> check_nan.r$JOBID &
     # run the actual job, in this case, the job will run for 200 seconds and fail (finished about 9 iterations each time)
-    mpiexec -np $((JOBSIZE*12)) --ppn 12 check-mate launcher python -m check_mate.test --compute 10 --niters 100 --output output.log
+    mpiexec -np $((JOBSIZE*12)) --ppn 12 check-mate launcher python -m check_mate.test --compute 5 --niters 100 --output output.log --nan-after 10
 
     EXIT_CODE=$?
     # Check the job status
     if [ $EXIT_CODE -ne 0 ]; then
-	echo "Job exited with $EXIT_CODE error code, will rerun"	
+	    echo "Job exited with $EXIT_CODE error code, will rerun"	
     else
         echo "Job run successfully"
         break
     fi
+
+    # rename the output file
+    mv output.log output.log.$(date +"%y-%m-%d-%H-%M-%S")
+    # clean up checkpoint data that has NaN
+    # ......
+    
     echo "Rerun the job at `date`; time of trials: $RUN"
     # clear up the nodes for rerun the job
-    pkill check-mate-hang
+    pkill -u $USER python
     PBS_NODEFILE=nodefile_all check-mate flush
     sleep 5
 done
